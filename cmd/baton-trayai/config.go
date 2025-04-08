@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/conductorone/baton-sdk/pkg/field"
 	"github.com/spf13/viper"
 )
@@ -31,9 +29,5 @@ var (
 // needs to perform extra validations that cannot be encoded with configuration
 // parameters.
 func ValidateConfig(v *viper.Viper) error {
-	authToken := v.GetString(AuthorizationTokenField.FieldName)
-	if len(authToken) == 0 {
-		return fmt.Errorf("required field 'auth-token' is missing")
-	}
 	return nil
 }

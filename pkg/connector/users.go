@@ -47,31 +47,29 @@ func (o *userBuilder) ResourceType(ctx context.Context) *v2.ResourceType {
 // Users include a UserTrait because they are the 'shape' of a standard user.
 func (o *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId, pToken *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
 	var (
-		users  []*v2.Resource
-		cursor = ""
+		users []*v2.Resource
 	)
 
-	for {
-		resp, err := o.client.ListUsers(ctx, client.ListUsersParams{
-			Cursor: cursor,
-		})
-		if err != nil {
-			return nil, "", nil, fmt.Errorf("baton-trayai: ListUsers failed: %w", err)
-		}
-
-		for _, user := range resp.Users {
-			vUser, err := userResource(ctx, user, parentResourceID)
-			if err != nil {
-				return nil, "", nil, fmt.Errorf("baton-trayai: cannot create connector resource: %w", err)
-			}
-			users = append(users, vUser)
-		}
-
-		cursor = resp.Page.EndCursor
-		if !resp.Page.HasNextPage {
-			return users, "", nil, nil
-		}
+	resp, err := o.client.ListUsers(ctx, client.ListUsersParams{
+		Cursor: pToken.Token,
+		First:  pToken.Size,
+	})
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("baton-trayai: ListUsers failed: %w", err)
 	}
+
+	for _, user := range resp.Users {
+		vUser, err := userResource(ctx, user, parentResourceID)
+		if err != nil {
+			return nil, "", nil, fmt.Errorf("baton-trayai: cannot create connector resource: %w", err)
+		}
+		users = append(users, vUser)
+	}
+
+	if !resp.Page.HasNextPage {
+		return users, "", nil, nil
+	}
+	return users, resp.Page.EndCursor, nil, nil
 }
 
 // Entitlements always returns an empty slice for users.

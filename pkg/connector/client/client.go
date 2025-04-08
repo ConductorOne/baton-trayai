@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
 )
@@ -46,12 +47,15 @@ func (c *Client) ListUsers(ctx context.Context, params ListUsersParams) (*ListUs
 		return nil, err
 	}
 
+	urlpath.RawQuery = toQuery(urlpath, params)
+
 	req, err := c.httpClient.NewRequest(ctx,
 		http.MethodGet,
 		urlpath,
 		uhttp.WithAcceptJSONHeader(),
 		uhttp.WithContentTypeJSONHeader(),
 	)
+
 	if err != nil {
 		return nil, err
 	}
@@ -64,4 +68,21 @@ func (c *Client) ListUsers(ctx context.Context, params ListUsersParams) (*ListUs
 
 	defer rawResp.Body.Close()
 	return resp, nil
+}
+
+func toQuery(url *url.URL, p ListUsersParams) string {
+	q := url.Query()
+	if p.Cursor != "" {
+		q.Set("cursor", p.Cursor)
+	}
+	if p.First != 0 {
+		q.Set("first", strconv.Itoa(p.First))
+	}
+	if p.Last != 0 {
+		q.Set("last", strconv.Itoa(p.Last))
+	}
+	if p.Email != "" {
+		q.Set("email", p.Email)
+	}
+	return q.Encode()
 }
