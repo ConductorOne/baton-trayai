@@ -14,7 +14,17 @@ func TestConfigs(t *testing.T) {
 	)
 
 	testCases := []test.TestCase{
-		// Add test cases here.
+		{
+			Configs: map[string]string{
+				"auth-token": "abc123",
+			},
+			IsValid: true,
+		},
+		{
+			Configs: map[string]string{
+				"auth-token": "",
+			},
+		},
 	}
 
 	test.ExerciseTestCases(t, configurationSchema, ValidateConfig, testCases)
