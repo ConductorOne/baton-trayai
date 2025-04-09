@@ -6,10 +6,16 @@ import (
 )
 
 var (
+	AuthorizationTokenField = field.StringField(
+		"auth-token",
+		field.WithDescription("auth-token for authenticating with the service"),
+		field.WithRequired(true),
+	)
+
 	// ConfigurationFields defines the external configuration required for the
 	// connector to run. Note: these fields can be marked as optional or
 	// required.
-	ConfigurationFields = []field.SchemaField{}
+	ConfigurationFields = []field.SchemaField{AuthorizationTokenField}
 
 	// FieldRelationships defines relationships between the fields listed in
 	// ConfigurationFields that can be automatically validated. For example, a
