@@ -26,12 +26,17 @@ func NewClient(p Params) *Client {
 	}
 }
 
-// ListUsersParams is the params passed to ListUsers().
-type ListUsersParams struct {
+// ListParams are the params passed to all `list` endpoint.
+type ListParams struct {
 	Cursor string
 	First  int // page size.
 	Last   int
-	Email  string
+
+	// ListUsers params.
+	Email string
+
+	// ListWorkspaces params.
+	WorkspaceType string // one of [Embedded, Organization, Personal, PersonalExternal, Shared]
 }
 
 // ListUsersResp is the response returned from ListUsers().
@@ -41,7 +46,7 @@ type ListUsersResp struct {
 }
 
 // ListUsers list all the users from tray.ai.
-func (c *Client) ListUsers(ctx context.Context, params ListUsersParams) (*ListUsersResp, error) {
+func (c *Client) ListUsers(ctx context.Context, params ListParams) (*ListUsersResp, error) {
 	urlpath, err := url.Parse(basePath + listUsersPath)
 	if err != nil {
 		return nil, err
@@ -70,7 +75,7 @@ func (c *Client) ListUsers(ctx context.Context, params ListUsersParams) (*ListUs
 	return resp, nil
 }
 
-func toQuery(url *url.URL, p ListUsersParams) string {
+func toQuery(url *url.URL, p ListParams) string {
 	q := url.Query()
 	if p.Cursor != "" {
 		q.Set("cursor", p.Cursor)
@@ -84,5 +89,43 @@ func toQuery(url *url.URL, p ListUsersParams) string {
 	if p.Email != "" {
 		q.Set("email", p.Email)
 	}
+	if p.WorkspaceType != "" {
+		q.Set("type", p.WorkspaceType)
+	}
 	return q.Encode()
+}
+
+// ListWorkspacesResp is the response from ListWorkspaces().
+type ListWorkspacesResp struct {
+	Workspace []Workspace `json:"elements"`
+	Page      PageInfo    `json:"pageInfo"`
+}
+
+func (c *Client) ListWorkspaces(ctx context.Context, params ListParams) (*ListWorkspacesResp, error) {
+	urlpath, err := url.Parse(basePath + listWorkspacesPath)
+	if err != nil {
+		return nil, err
+	}
+
+	urlpath.RawQuery = toQuery(urlpath, params)
+
+	req, err := c.httpClient.NewRequest(ctx,
+		http.MethodGet,
+		urlpath,
+		uhttp.WithAcceptJSONHeader(),
+		uhttp.WithContentTypeJSONHeader(),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var resp *ListWorkspacesResp
+	rawResp, err := c.httpClient.Do(req, uhttp.WithJSONResponse(&resp))
+	if err != nil {
+		return nil, err
+	}
+
+	defer rawResp.Body.Close()
+	return resp, nil
 }

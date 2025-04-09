@@ -50,7 +50,7 @@ func (o *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 		users []*v2.Resource
 	)
 
-	resp, err := o.client.ListUsers(ctx, client.ListUsersParams{
+	resp, err := o.client.ListUsers(ctx, client.ListParams{
 		Cursor: pToken.Token,
 		First:  pToken.Size,
 	})
