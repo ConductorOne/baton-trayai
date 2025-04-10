@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -37,6 +38,9 @@ type ListParams struct {
 
 	// ListWorkspaces params.
 	WorkspaceType string // one of [Embedded, Organization, Personal, PersonalExternal, Shared]
+
+	// ListWorkspaceRoles params
+	WorkspaceID string
 }
 
 // ListResp is the response returned from all `list` endpoint.
@@ -115,6 +119,91 @@ func (c *Client) ListWorkspaces(ctx context.Context, params ListParams) (*ListRe
 	}
 
 	var resp *ListResp
+	rawResp, err := c.httpClient.Do(req, uhttp.WithJSONResponse(&resp))
+	if err != nil {
+		return nil, err
+	}
+
+	defer rawResp.Body.Close()
+	return resp, nil
+}
+
+func (c *Client) ListWorkspaceRoles(ctx context.Context, params ListParams) (*ListResp, error) {
+	urlpath, err := url.Parse(basePath + fmt.Sprintf(listWorkspaceRolesPath, params.WorkspaceID))
+	if err != nil {
+		return nil, err
+	}
+
+	urlpath.RawQuery = toQuery(urlpath, params)
+
+	req, err := c.httpClient.NewRequest(ctx,
+		http.MethodGet,
+		urlpath,
+		uhttp.WithAcceptJSONHeader(),
+		uhttp.WithContentTypeJSONHeader(),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var resp *ListResp
+	rawResp, err := c.httpClient.Do(req, uhttp.WithJSONResponse(&resp))
+	if err != nil {
+		return nil, err
+	}
+
+	defer rawResp.Body.Close()
+	return resp, nil
+}
+
+func (c *Client) ListWorkspaceUsers(ctx context.Context, params ListParams) (*ListResp, error) {
+	urlpath, err := url.Parse(basePath + fmt.Sprintf(listWorkspaceUsersPath, params.WorkspaceID))
+	if err != nil {
+		return nil, err
+	}
+
+	urlpath.RawQuery = toQuery(urlpath, params)
+
+	req, err := c.httpClient.NewRequest(ctx,
+		http.MethodGet,
+		urlpath,
+		uhttp.WithAcceptJSONHeader(),
+		uhttp.WithContentTypeJSONHeader(),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var resp *ListResp
+	rawResp, err := c.httpClient.Do(req, uhttp.WithJSONResponse(&resp))
+	if err != nil {
+		return nil, err
+	}
+
+	defer rawResp.Body.Close()
+	return resp, nil
+}
+
+func (c *Client) GetUser(ctx context.Context, userID string) (*User, error) {
+	urlpath, err := url.Parse(basePath + fmt.Sprintf(getUserPath, userID))
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := c.httpClient.NewRequest(ctx,
+		http.MethodGet,
+		urlpath,
+		uhttp.WithAcceptJSONHeader(),
+		uhttp.WithContentTypeJSONHeader(),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var resp *User
 	rawResp, err := c.httpClient.Do(req, uhttp.WithJSONResponse(&resp))
 	if err != nil {
 		return nil, err
