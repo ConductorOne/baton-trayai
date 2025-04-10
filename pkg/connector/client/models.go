@@ -1,7 +1,7 @@
 package client
 
-// User is the Tray.ai user.
-type User struct {
+// Element is the Tray.ai element.
+type Element struct {
 	ID               string `json:"id"`
 	Name             string `json:"name"`
 	Type             string `json:"type"`
@@ -15,6 +15,3 @@ type PageInfo struct {
 	HasNextPage     bool   `json:"hasNextPage"`
 	HasPreviousPage bool   `json:"hasPreviousPage"`
 }
-
-// Workspace has the same fields as a User. It was created to avoid ambiguity.
-type Workspace User

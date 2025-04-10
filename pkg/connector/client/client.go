@@ -39,14 +39,14 @@ type ListParams struct {
 	WorkspaceType string // one of [Embedded, Organization, Personal, PersonalExternal, Shared]
 }
 
-// ListUsersResp is the response returned from ListUsers().
-type ListUsersResp struct {
-	Users []User   `json:"elements"`
-	Page  PageInfo `json:"pageInfo"`
+// ListResp is the response returned from all `list` endpoint.
+type ListResp struct {
+	Elements []Element `json:"elements"`
+	Page     PageInfo  `json:"pageInfo"`
 }
 
 // ListUsers list all the users from tray.ai.
-func (c *Client) ListUsers(ctx context.Context, params ListParams) (*ListUsersResp, error) {
+func (c *Client) ListUsers(ctx context.Context, params ListParams) (*ListResp, error) {
 	urlpath, err := url.Parse(basePath + listUsersPath)
 	if err != nil {
 		return nil, err
@@ -65,7 +65,7 @@ func (c *Client) ListUsers(ctx context.Context, params ListParams) (*ListUsersRe
 		return nil, err
 	}
 
-	var resp *ListUsersResp
+	var resp *ListResp
 	rawResp, err := c.httpClient.Do(req, uhttp.WithJSONResponse(&resp))
 	if err != nil {
 		return nil, err
@@ -95,13 +95,7 @@ func toQuery(url *url.URL, p ListParams) string {
 	return q.Encode()
 }
 
-// ListWorkspacesResp is the response from ListWorkspaces().
-type ListWorkspacesResp struct {
-	Workspace []Workspace `json:"elements"`
-	Page      PageInfo    `json:"pageInfo"`
-}
-
-func (c *Client) ListWorkspaces(ctx context.Context, params ListParams) (*ListWorkspacesResp, error) {
+func (c *Client) ListWorkspaces(ctx context.Context, params ListParams) (*ListResp, error) {
 	urlpath, err := url.Parse(basePath + listWorkspacesPath)
 	if err != nil {
 		return nil, err
@@ -120,7 +114,7 @@ func (c *Client) ListWorkspaces(ctx context.Context, params ListParams) (*ListWo
 		return nil, err
 	}
 
-	var resp *ListWorkspacesResp
+	var resp *ListResp
 	rawResp, err := c.httpClient.Do(req, uhttp.WithJSONResponse(&resp))
 	if err != nil {
 		return nil, err

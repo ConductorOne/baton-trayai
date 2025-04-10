@@ -12,7 +12,7 @@ import (
 )
 
 // workspaceResource is used to create a new connector resource for a tray.ai workspace.
-func workspaceResource(ws client.Workspace) (*v2.Resource, error) {
+func workspaceResource(ws client.Element) (*v2.Resource, error) {
 	return resource.NewGroupResource(
 		ws.Name,
 		workspaceResourceType,
@@ -57,7 +57,7 @@ func (w *workspaceBuilder) List(ctx context.Context, parentResourceID *v2.Resour
 		return nil, "", nil, fmt.Errorf("baton-trayai: ListWorkspaces failed: %w", err)
 	}
 
-	for _, workspace := range resp.Workspace {
+	for _, workspace := range resp.Elements {
 		vWorkspace, err := workspaceResource(workspace)
 		if err != nil {
 			return nil, "", nil, fmt.Errorf("baton-trayai: cannot create connector resource: %w", err)
