@@ -30,6 +30,9 @@ func workspaceResource(ws client.Element) (*v2.Resource, error) {
 				},
 			),
 		},
+		resource.WithAnnotation(
+			&v2.ChildResourceType{ResourceTypeId: roleResourceType.Id},
+		),
 	)
 }
 
