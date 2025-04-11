@@ -7,6 +7,8 @@ import (
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/pagination"
+	"github.com/conductorone/baton-sdk/pkg/types/entitlement"
+	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	"github.com/conductorone/baton-sdk/pkg/types/resource"
 	"github.com/conductorone/baton-trayai/pkg/connector/client"
 )
@@ -69,15 +71,71 @@ func (w *workspaceBuilder) List(ctx context.Context, parentResourceID *v2.Resour
 }
 
 // Entitlements returns workspace entitlements from the database as resource objects.
-func (w *workspaceBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
-	// TODO. BB-451. We should pull the workspace roles before Entitlements Implementation.
-	return nil, "", nil, nil
+func (w *workspaceBuilder) Entitlements(ctx context.Context, resource *v2.Resource, pToken *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
+	var ents []*v2.Entitlement
+	resp, err := w.client.ListWorkspaceRoles(ctx, client.ListParams{
+		Cursor:      pToken.Token,
+		First:       pToken.Size,
+		WorkspaceID: resource.Id.Resource,
+	})
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("baton-trayai: ListWorkspaceRoles failed: %w", err)
+	}
+
+	for _, role := range resp.Elements {
+		assignmentOptions := []entitlement.EntitlementOption{
+			entitlement.WithGrantableTo(userResourceType, workspaceResourceType),
+			entitlement.WithDisplayName(fmt.Sprintf("%s workspace %s", resource.DisplayName, role.Name)),
+			entitlement.WithDescription(fmt.Sprintf("%s access to %s in tray.ai", role.Name, resource.DisplayName)),
+		}
+
+		ents = append(ents, entitlement.NewAssignmentEntitlement(
+			resource,
+			role.Name,
+			assignmentOptions...,
+		))
+	}
+
+	if !resp.Page.HasNextPage {
+		return ents, "", nil, nil
+	}
+	return ents, resp.Page.EndCursor, nil, nil
 }
 
 // Grants returns grants for workspace.
-func (w *workspaceBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	// TODO. BB-451. We should pull the workspace roles before Grants Implementation.
-	return nil, "", nil, nil
+func (w *workspaceBuilder) Grants(ctx context.Context, r *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
+	resp, err := w.client.ListWorkspaceUsers(ctx, client.ListParams{
+		Cursor:      pToken.Token,
+		First:       pToken.Size,
+		WorkspaceID: r.Id.Resource,
+	})
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("baton-trayai: ListWorkspaceUsers failed: %w", err)
+	}
+
+	grants := make([]*v2.Grant, 0, len(resp.Elements))
+	for _, userID := range resp.Elements {
+		user, err := w.client.GetUser(ctx, userID.ID)
+		if err != nil {
+			return nil, "", nil, fmt.Errorf("baton-trayai: GetUser %v failed: %w,", userID, err)
+		}
+
+		userResource, err := resource.NewResourceID(userResourceType, user.ID)
+		if err != nil {
+			return nil, "", nil, fmt.Errorf("baton-trayai: cannot crete connector resource id: %w", err)
+		}
+
+		grants = append(grants, grant.NewGrant(
+			r,
+			user.Role.Name,
+			userResource,
+		))
+	}
+
+	if !resp.Page.HasNextPage {
+		return grants, "", nil, nil
+	}
+	return grants, resp.Page.EndCursor, nil, nil
 }
 
 func newWorkspaceBuild(c *client.Client) *workspaceBuilder {

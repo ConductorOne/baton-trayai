@@ -15,3 +15,16 @@ type PageInfo struct {
 	HasNextPage     bool   `json:"hasNextPage"`
 	HasPreviousPage bool   `json:"hasPreviousPage"`
 }
+
+type User struct {
+	ID          string `json:"id"`
+	Email       string `json:"email"`
+	Name        string `json:"name"`
+	AccountType string `json:"accountType"`
+	Role        Role   `json:"role"`
+}
+
+type Role struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
