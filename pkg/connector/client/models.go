@@ -1,7 +1,7 @@
 package client
 
-// User is the Tray.ai user.
-type User struct {
+// Element is the Tray.ai element.
+type Element struct {
 	ID               string `json:"id"`
 	Name             string `json:"name"`
 	Type             string `json:"type"`
