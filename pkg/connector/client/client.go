@@ -79,6 +79,41 @@ func (c *Client) ListUsers(ctx context.Context, params ListParams) (*ListResp, e
 	return resp, nil
 }
 
+// CreateUserParams is the parameters passed to CreateUser().
+type CreateUserParams struct {
+	Name               string
+	Email              string
+	OrganizationRoleId string
+}
+
+// CreateUser is used to create user in tray.ai.
+func (c *Client) CreateUser(ctx context.Context, params *CreateUserParams) (*User, error) {
+	urlpath, err := url.Parse(basePath + listUsersPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := c.httpClient.NewRequest(ctx,
+		http.MethodPost,
+		urlpath,
+		uhttp.WithFormBody(toValues(params)),
+		uhttp.WithAcceptJSONHeader(),
+		uhttp.WithContentTypeJSONHeader(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp *User
+	rawResp, err := c.httpClient.Do(req, uhttp.WithJSONResponse(&resp))
+	if err != nil {
+		return nil, err
+	}
+
+	defer rawResp.Body.Close()
+	return resp, nil
+}
+
 func toQuery(url *url.URL, p ListParams) string {
 	q := url.Query()
 	if p.Cursor != "" {
@@ -211,4 +246,20 @@ func (c *Client) GetUser(ctx context.Context, userID string) (*User, error) {
 
 	defer rawResp.Body.Close()
 	return resp, nil
+}
+
+func toValues(p *CreateUserParams) string {
+	values := url.Values{}
+	if p.Name != "" {
+		values.Add("name", p.Name)
+	}
+
+	if p.Email != "" {
+		values.Add("email", p.Email)
+	}
+
+	if p.OrganizationRoleId != "" {
+		values.Add("organizationRoleId", p.OrganizationRoleId)
+	}
+	return values.Encode()
 }
