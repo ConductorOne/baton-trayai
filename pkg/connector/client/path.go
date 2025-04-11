@@ -8,5 +8,6 @@ const (
 	listWorkspaceRolesPath = "/core/v1/workspaces/%s/roles"
 	listWorkspaceUsersPath = "/core/v1/workspaces/%s/users"
 
-	getUserPath = "/core/v1/users/%s"
+	getUserPath      = "/core/v1/users/%s"
+	getWorkspacePath = "/core/v1/workspaces/%s"
 )
