@@ -35,6 +35,40 @@ func (d *Connector) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error)
 	return &v2.ConnectorMetadata{
 		DisplayName: "Tray.ai",
 		Description: "Connector syncing users from tray.ai to Baton",
+		AccountCreationSchema: &v2.ConnectorAccountCreationSchema{
+			FieldMap: map[string]*v2.ConnectorAccountCreationSchema_Field{
+				"name": {
+					DisplayName: "Name",
+					Required:    true,
+					Description: "User name",
+					Field: &v2.ConnectorAccountCreationSchema_Field_StringField{
+						StringField: &v2.ConnectorAccountCreationSchema_StringField{},
+					},
+					Placeholder: "Name",
+					Order:       1,
+				},
+				"email": {
+					DisplayName: "Email",
+					Required:    true,
+					Description: "This email will be used as the login for the user.",
+					Field: &v2.ConnectorAccountCreationSchema_Field_StringField{
+						StringField: &v2.ConnectorAccountCreationSchema_StringField{},
+					},
+					Placeholder: "Email",
+					Order:       2,
+				},
+				"organizationRoleId": {
+					DisplayName: "Role",
+					Required:    true,
+					Description: "user's role in organization",
+					Field: &v2.ConnectorAccountCreationSchema_Field_StringField{
+						StringField: &v2.ConnectorAccountCreationSchema_StringField{},
+					},
+					Placeholder: "organizationRoleID",
+					Order:       3,
+				},
+			},
+		},
 	}, nil
 }
 
