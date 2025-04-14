@@ -14,7 +14,7 @@ import (
 // Create a new connector resource for a tray.ai user.
 func userResource(
 	_ context.Context,
-	user client.User,
+	user client.Element,
 	parentResourceID *v2.ResourceId,
 ) (*v2.Resource, error) {
 	// TODO. BB-451. We should get the email via GetUser api.
@@ -50,7 +50,7 @@ func (o *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 		users []*v2.Resource
 	)
 
-	resp, err := o.client.ListUsers(ctx, client.ListUsersParams{
+	resp, err := o.client.ListUsers(ctx, client.ListParams{
 		Cursor: pToken.Token,
 		First:  pToken.Size,
 	})
@@ -58,7 +58,7 @@ func (o *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 		return nil, "", nil, fmt.Errorf("baton-trayai: ListUsers failed: %w", err)
 	}
 
-	for _, user := range resp.Users {
+	for _, user := range resp.Elements {
 		vUser, err := userResource(ctx, user, parentResourceID)
 		if err != nil {
 			return nil, "", nil, fmt.Errorf("baton-trayai: cannot create connector resource: %w", err)
