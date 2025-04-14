@@ -70,13 +70,13 @@ func (w *workspaceBuilder) List(ctx context.Context, parentResourceID *v2.Resour
 
 // Entitlements returns workspace entitlements from the database as resource objects.
 func (w *workspaceBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
-	// TODO. BB-451. We should pull the workspace roles before Entitlements Implementation.
+	// TODO. We should pull the workspace roles before Entitlements Implementation.
 	return nil, "", nil, nil
 }
 
 // Grants returns grants for workspace.
 func (w *workspaceBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	// TODO. BB-451. We should pull the workspace roles before Grants Implementation.
+	// TODO. We should pull the workspace roles before Grants Implementation.
 	return nil, "", nil, nil
 }
 
