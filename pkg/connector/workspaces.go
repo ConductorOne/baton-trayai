@@ -34,7 +34,8 @@ func workspaceResource(ws client.Element) (*v2.Resource, error) {
 }
 
 type workspaceBuilder struct {
-	client *client.Client
+	client   *client.Client
+	uBuilder *userBuilder
 }
 
 // ResourceType returns the workspace resource type.
@@ -113,11 +114,14 @@ func (w *workspaceBuilder) Grants(ctx context.Context, r *v2.Resource, pToken *p
 		return nil, "", nil, fmt.Errorf("baton-trayai: ListWorkspaceUsers failed: %w", err)
 	}
 
-	grants := make([]*v2.Grant, 0, len(resp.Elements))
+	var (
+		grants = make([]*v2.Grant, 0, len(resp.Elements))
+		users  = w.uBuilder.getUsers()
+	)
 	for _, userID := range resp.Elements {
-		user, err := w.client.GetUser(ctx, userID.ID)
-		if err != nil {
-			return nil, "", nil, fmt.Errorf("baton-trayai: GetUser %v failed: %w,", userID, err)
+		user, ok := users[userID.ID]
+		if !ok {
+			return nil, "", nil, fmt.Errorf("baton-trayai: Unable to find a user with the specified user ID: %s", userID.ID)
 		}
 
 		userResource, err := resource.NewResourceID(userResourceType, user.ID)
@@ -138,8 +142,9 @@ func (w *workspaceBuilder) Grants(ctx context.Context, r *v2.Resource, pToken *p
 	return grants, resp.Page.EndCursor, nil, nil
 }
 
-func newWorkspaceBuild(c *client.Client) *workspaceBuilder {
+func newWorkspaceBuild(c *client.Client, ubuilder *userBuilder) *workspaceBuilder {
 	return &workspaceBuilder{
-		client: c,
+		client:   c,
+		uBuilder: ubuilder,
 	}
 }

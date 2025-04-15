@@ -3,6 +3,7 @@ package connector
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
@@ -14,15 +15,17 @@ import (
 // Create a new connector resource for a tray.ai user.
 func userResource(
 	_ context.Context,
-	user client.Element,
+	user *client.User,
 	parentResourceID *v2.ResourceId,
 ) (*v2.Resource, error) {
-	// TODO. BB-451. We should get the email via GetUser api.
-	// see https://developer.tray.ai/openapi/trayapi/tag/users/#tag/users/operation/get-user-by-id
 	profile := map[string]interface{}{
-		"id":       user.ID,
-		"username": user.Name,
+		"id":          user.ID,
+		"email":       user.Email,
+		"username":    user.Name,
+		"accountType": user.AccountType,
+		"role":        user.Role.Name,
 	}
+
 	return resource.NewUserResource(
 		user.Name,
 		userResourceType,
@@ -37,6 +40,8 @@ func userResource(
 
 type userBuilder struct {
 	client *client.Client
+	mu     sync.Mutex
+	users  map[string]*client.User // map[userID]*User
 }
 
 func (o *userBuilder) ResourceType(ctx context.Context) *v2.ResourceType {
@@ -58,11 +63,21 @@ func (o *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 		return nil, "", nil, fmt.Errorf("baton-trayai: ListUsers failed: %w", err)
 	}
 
-	for _, user := range resp.Elements {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	for _, element := range resp.Elements {
+		user, err := o.client.GetUser(ctx, element.ID)
+		if err != nil {
+			return nil, "", nil, fmt.Errorf("baton-trayai: GetUser failed: %w", err)
+		}
+
 		vUser, err := userResource(ctx, user, parentResourceID)
 		if err != nil {
 			return nil, "", nil, fmt.Errorf("baton-trayai: cannot create connector resource: %w", err)
 		}
+
+		o.users[user.ID] = user
 		users = append(users, vUser)
 	}
 
@@ -82,8 +97,15 @@ func (o *userBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken 
 	return nil, "", nil, nil
 }
 
+func (o *userBuilder) getUsers() map[string]*client.User {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return o.users
+}
+
 func newUserBuilder(c *client.Client) *userBuilder {
 	return &userBuilder{
 		client: c,
+		users:  make(map[string]*client.User),
 	}
 }
