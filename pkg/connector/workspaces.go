@@ -121,12 +121,16 @@ func (w *workspaceBuilder) Grants(ctx context.Context, r *v2.Resource, pToken *p
 	for _, userID := range resp.Elements {
 		user, ok := users[userID.ID]
 		if !ok {
-			return nil, "", nil, fmt.Errorf("baton-trayai: Unable to find a user with the specified user ID: %s", userID.ID)
+			// if the userID.ID not found in the cache, GetUser() is called to get the user.
+			user, err = w.client.GetUser(ctx, userID.ID)
+			if err != nil {
+				return nil, "", nil, fmt.Errorf("baton-trayai: Unable to find a user with the specified user ID: %s", userID.ID)
+			}
 		}
 
 		userResource, err := resource.NewResourceID(userResourceType, user.ID)
 		if err != nil {
-			return nil, "", nil, fmt.Errorf("baton-trayai: cannot crete connector resource id: %w", err)
+			return nil, "", nil, fmt.Errorf("baton-trayai: cannot create connector resource id: %w", err)
 		}
 
 		grants = append(grants, grant.NewGrant(
