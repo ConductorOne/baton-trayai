@@ -28,3 +28,6 @@ type Role struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
+
+// Workspace has the same fields as Element. It's created to avoid ambiguity.
+type Workspace Element
