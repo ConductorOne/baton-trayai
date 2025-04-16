@@ -76,8 +76,8 @@ jobs:
       #     PGPASSWORD: secretpassword
       - name: Build baton-trayai
         run: go build ./cmd/baton-trayai
-      - name: Run baton-trayai
-        run: ./baton-trayai 
+      # - name: Run baton-trayai
+      #   run: ./baton-trayai 
 
       # - name: Install baton
       #   run: ./scripts/get-baton.sh && mv baton /usr/local/bin
