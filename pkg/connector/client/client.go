@@ -212,3 +212,30 @@ func (c *Client) GetUser(ctx context.Context, userID string) (*User, error) {
 	defer rawResp.Body.Close()
 	return resp, nil
 }
+
+func (c *Client) GetWorkspace(ctx context.Context, workspaceID string) (*Workspace, error) {
+	urlpath, err := url.Parse(basePath + fmt.Sprintf(getWorkspacePath, workspaceID))
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := c.httpClient.NewRequest(ctx,
+		http.MethodGet,
+		urlpath,
+		uhttp.WithAcceptJSONHeader(),
+		uhttp.WithContentTypeJSONHeader(),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var resp *Workspace
+	rawResp, err := c.httpClient.Do(req, uhttp.WithJSONResponse(&resp))
+	if err != nil {
+		return nil, err
+	}
+
+	defer rawResp.Body.Close()
+	return resp, nil
+}
