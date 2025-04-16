@@ -97,10 +97,40 @@ func (o *userBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken 
 	return nil, "", nil, nil
 }
 
-func (o *userBuilder) getUsers() map[string]*client.User {
+func (o *userBuilder) getUsers(ctx context.Context) (map[string]*client.User, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	return o.users
+
+	if len(o.users) > 0 {
+		return o.users, nil
+	}
+
+	cursor := ""
+	for {
+		resp, err := o.client.ListUsers(ctx, client.ListParams{
+			Cursor: cursor,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("baton-trayai: getUsers failed: %w", err)
+		}
+
+		for _, element := range resp.Elements {
+			user, err := o.client.GetUser(ctx, element.ID)
+			if err != nil {
+				return nil, fmt.Errorf("baton-trayai: GetUser failed: %w", err)
+			}
+			o.users[user.ID] = user
+		}
+
+		if resp.Page.EndCursor == "" {
+			return o.users, nil
+		}
+
+		if cursor == resp.Page.EndCursor {
+			return nil, fmt.Errorf("baton-trayai: current shouldn't be equal to endCursor")
+		}
+		cursor = resp.Page.EndCursor
+	}
 }
 
 func newUserBuilder(c *client.Client) *userBuilder {
