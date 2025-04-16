@@ -77,6 +77,8 @@ jobs:
       - name: Build baton-trayai
         run: go build ./cmd/baton-trayai
       - name: Run baton-trayai
+        env:
+          BATON_AUTH_TOKEN: ${{ secrets.BATON_AUTH_TOKEN }} 
         run: ./baton-trayai 
 
       # - name: Install baton
