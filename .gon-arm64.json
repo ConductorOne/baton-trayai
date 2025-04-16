@@ -1,5 +1,5 @@
 {
-  "source": ["./dist/macos-arm64_darwin_arm64/baton-trayai"],
+  "source": ["./dist/macos-arm64_darwin_arm64_v8.0/baton-trayai"],
   "bundle_id": "com.conductorone.baton-trayai",
   "apple_id": {
     "username" : "justin.gallardo@conductorone.com"

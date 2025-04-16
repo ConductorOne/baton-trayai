@@ -36,7 +36,7 @@ builds:
     hooks:
       post:
         - gon .gon-arm64.json
-        - mv dist/baton-trayai-darwin-arm64.signed.zip dist/macos-arm64_darwin_arm64/baton-trayai
+        - mv dist/baton-trayai-darwin-arm64.signed.zip dist/macos-arm64_darwin_arm64_v8.0/baton-trayai
 archives:
   - id: linux-archive
     builds:
