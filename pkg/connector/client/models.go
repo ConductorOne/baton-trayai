@@ -17,6 +17,7 @@ type PageInfo struct {
 }
 
 type User struct {
+	WorkspaceID string `json:"workspaceId"`
 	ID          string `json:"id"`
 	Email       string `json:"email"`
 	Name        string `json:"name"`

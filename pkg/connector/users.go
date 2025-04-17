@@ -3,7 +3,6 @@ package connector
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
@@ -41,8 +40,6 @@ func userResource(
 
 type userBuilder struct {
 	client *client.Client
-	mu     sync.Mutex
-	users  map[string]*client.User // map[userID]*User
 }
 
 func (o *userBuilder) ResourceType(ctx context.Context) *v2.ResourceType {
@@ -64,11 +61,8 @@ func (o *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 		return nil, "", nil, fmt.Errorf("baton-trayai: ListUsers failed: %w", err)
 	}
 
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
 	for _, element := range resp.Elements {
-		user, err := o.client.GetUser(ctx, element.ID)
+		user, err := o.client.GetOrganizationUser(ctx, element.ID)
 		if err != nil {
 			return nil, "", nil, fmt.Errorf("baton-trayai: GetUser failed: %w", err)
 		}
@@ -78,7 +72,6 @@ func (o *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 			return nil, "", nil, fmt.Errorf("baton-trayai: cannot create connector resource: %w", err)
 		}
 
-		o.users[user.ID] = user
 		users = append(users, vUser)
 	}
 
@@ -96,42 +89,6 @@ func (o *userBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *
 // Grants always returns an empty slice for users since they don't have any entitlements.
 func (o *userBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
 	return nil, "", nil, nil
-}
-
-func (o *userBuilder) getUsers(ctx context.Context) (map[string]*client.User, error) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-
-	if len(o.users) > 0 {
-		return o.users, nil
-	}
-
-	cursor := ""
-	for {
-		resp, err := o.client.ListUsers(ctx, client.ListParams{
-			Cursor: cursor,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("baton-trayai: getUsers failed: %w", err)
-		}
-
-		for _, element := range resp.Elements {
-			user, err := o.client.GetUser(ctx, element.ID)
-			if err != nil {
-				return nil, fmt.Errorf("baton-trayai: GetUser failed: %w", err)
-			}
-			o.users[user.ID] = user
-		}
-
-		if resp.Page.EndCursor == "" {
-			return o.users, nil
-		}
-
-		if cursor == resp.Page.EndCursor {
-			return nil, fmt.Errorf("baton-trayai: current shouldn't be equal to endCursor")
-		}
-		cursor = resp.Page.EndCursor
-	}
 }
 
 func (o *userBuilder) CreateAccountCapabilityDetails(ctx context.Context) (*v2.CredentialDetailsAccountProvisioning, annotations.Annotations, error) {
@@ -194,6 +151,5 @@ func getCreateUserParams(accountInfo *v2.AccountInfo) (*client.CreateUserParams,
 func newUserBuilder(c *client.Client) *userBuilder {
 	return &userBuilder{
 		client: c,
-		users:  make(map[string]*client.User),
 	}
 }

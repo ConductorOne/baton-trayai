@@ -31,7 +31,8 @@ func roleResource(e client.Element, parentResourceID *v2.ResourceId) (*v2.Resour
 
 // roleBuilder is the builder for workspace role.
 type roleBuilder struct {
-	client *client.Client
+	client   *client.Client
+	wbuilder *workspaceBuilder
 }
 
 func (r *roleBuilder) ResourceType(ctx context.Context) *v2.ResourceType {
@@ -103,28 +104,29 @@ func (r *roleBuilder) Grants(ctx context.Context, v2Resource *v2.Resource, pToke
 		return nil, "", nil, nil
 	}
 
-	users, err := r.client.ListWorkspaceUsers(ctx, client.ListParams{
-		Cursor:      pToken.Token,
-		First:       pToken.Size,
-		WorkspaceID: v2Resource.ParentResourceId.Resource,
-	})
+	workspaceUsers, err := r.wbuilder.getWorkspaceUsers(ctx, v2Resource.ParentResourceId.Resource)
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("baton-trayai: ListWorkspaceUsers failed: %w", err)
+		return nil, "", nil, err
 	}
 
-	rv := make([]*v2.Grant, 0, len(users.Elements))
-	for _, user := range users.Elements {
+	rv := make([]*v2.Grant, 0, len(workspaceUsers))
+	for _, user := range workspaceUsers {
+		if v2Resource.Id.Resource != user.Role.ID {
+			continue
+		}
+
 		userID, err := resource.NewResourceID(userResourceType, user.ID)
 		if err != nil {
 			return nil, "", nil, fmt.Errorf("baton-trayai: failed to create resourceID for user: %w", err)
 		}
 		rv = append(rv, grant.NewGrant(v2Resource, RoleAssignmentEntitlement, userID))
 	}
-	return rv, users.Page.EndCursor, nil, nil
+	return rv, "", nil, nil
 }
 
-func newRoleBuilder(c *client.Client) *roleBuilder {
+func newRoleBuilder(c *client.Client, wb *workspaceBuilder) *roleBuilder {
 	return &roleBuilder{
-		client: c,
+		client:   c,
+		wbuilder: wb,
 	}
 }

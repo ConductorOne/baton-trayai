@@ -221,7 +221,7 @@ func (c *Client) ListWorkspaceUsers(ctx context.Context, params ListParams) (*Li
 	return resp, nil
 }
 
-func (c *Client) GetUser(ctx context.Context, userID string) (*User, error) {
+func (c *Client) GetOrganizationUser(ctx context.Context, userID string) (*User, error) {
 	urlpath, err := url.Parse(basePath + fmt.Sprintf(getUserPath, userID))
 	if err != nil {
 		return nil, err
@@ -234,6 +234,34 @@ func (c *Client) GetUser(ctx context.Context, userID string) (*User, error) {
 		uhttp.WithContentTypeJSONHeader(),
 	)
 
+	if err != nil {
+		return nil, err
+	}
+
+	var resp *User
+	rawResp, err := c.httpClient.Do(req, uhttp.WithJSONResponse(&resp))
+	if err != nil {
+		return nil, err
+	}
+
+	defer rawResp.Body.Close()
+	return resp, nil
+}
+
+// GetWorkspaceUser is different from GetOrganizationUser since one user could have different roles in
+// different workspaces.
+func (c *Client) GetWorkspaceUser(ctx context.Context, userID string, workspaceID string) (*User, error) {
+	urlpath, err := url.Parse(basePath + fmt.Sprintf(getWorkspaceUserPath, workspaceID, userID))
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := c.httpClient.NewRequest(ctx,
+		http.MethodGet,
+		urlpath,
+		uhttp.WithAcceptJSONHeader(),
+		uhttp.WithContentTypeJSONHeader(),
+	)
 	if err != nil {
 		return nil, err
 	}

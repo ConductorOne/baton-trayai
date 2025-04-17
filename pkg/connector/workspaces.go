@@ -3,6 +3,7 @@ package connector
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
@@ -37,8 +38,9 @@ func workspaceResource(ws client.Element) (*v2.Resource, error) {
 }
 
 type workspaceBuilder struct {
-	client   *client.Client
-	uBuilder *userBuilder
+	mu             sync.Mutex
+	client         *client.Client
+	workspaceUsers map[string][]*client.User // map[workspaceID]users
 }
 
 // ResourceType returns the workspace resource type.
@@ -117,16 +119,14 @@ func (w *workspaceBuilder) Grants(ctx context.Context, r *v2.Resource, pToken *p
 		return nil, "", nil, fmt.Errorf("baton-trayai: ListWorkspaceUsers failed: %w", err)
 	}
 
-	grants := make([]*v2.Grant, 0, len(resp.Elements))
-	users, err := w.uBuilder.getUsers(ctx)
-	if err != nil {
-		return nil, "", nil, err
-	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
 
+	grants := make([]*v2.Grant, 0, len(resp.Elements))
 	for _, userID := range resp.Elements {
-		user, ok := users[userID.ID]
-		if !ok {
-			return nil, "", nil, fmt.Errorf("baton-trayai: userID %s not found", userID.ID)
+		user, err := w.client.GetWorkspaceUser(ctx, userID.ID, r.Id.Resource)
+		if err != nil {
+			return nil, "", nil, fmt.Errorf("baton-trayai: GetWorkspaceUser failed: %w", err)
 		}
 
 		userResource, err := resource.NewResourceID(userResourceType, user.ID)
@@ -139,6 +139,10 @@ func (w *workspaceBuilder) Grants(ctx context.Context, r *v2.Resource, pToken *p
 			user.Role.Name,
 			userResource,
 		))
+
+		workspaceUsers := w.workspaceUsers[r.Id.Resource]
+		workspaceUsers = append(workspaceUsers, user)
+		w.workspaceUsers[r.Id.Resource] = workspaceUsers
 	}
 
 	if !resp.Page.HasNextPage {
@@ -147,9 +151,50 @@ func (w *workspaceBuilder) Grants(ctx context.Context, r *v2.Resource, pToken *p
 	return grants, resp.Page.EndCursor, nil, nil
 }
 
-func newWorkspaceBuild(c *client.Client, ubuilder *userBuilder) *workspaceBuilder {
+func (w *workspaceBuilder) getWorkspaceUsers(ctx context.Context, workspaceID string) ([]*client.User, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	workspaceUsers, ok := w.workspaceUsers[workspaceID]
+	if ok {
+		return workspaceUsers, nil
+	}
+
+	cursor := ""
+	for {
+		resp, err := w.client.ListWorkspaceUsers(ctx, client.ListParams{
+			Cursor:      cursor,
+			WorkspaceID: workspaceID,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("baton-trayai: ListWorkspaceUsers failed: %w", err)
+		}
+
+		for _, element := range resp.Elements {
+			user, err := w.client.GetWorkspaceUser(ctx, element.ID, workspaceID)
+			if err != nil {
+				return nil, fmt.Errorf("baton-trayai: GetWorkspaceUser failed: %w", err)
+			}
+			workspaceUsers = append(workspaceUsers, user)
+		}
+
+		w.workspaceUsers[workspaceID] = workspaceUsers
+		if resp.Page.EndCursor == "" {
+			break
+		}
+
+		if cursor == resp.Page.EndCursor {
+			return nil, fmt.Errorf("baton-trayai: current cursor shouldn't be equal to endCursor")
+		}
+		cursor = resp.Page.EndCursor
+	}
+
+	w.workspaceUsers[workspaceID] = workspaceUsers
+	return workspaceUsers, nil
+}
+func newWorkspaceBuild(c *client.Client) *workspaceBuilder {
 	return &workspaceBuilder{
-		client:   c,
-		uBuilder: ubuilder,
+		client:         c,
+		workspaceUsers: make(map[string][]*client.User),
 	}
 }
