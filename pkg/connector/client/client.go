@@ -301,3 +301,55 @@ func (c *Client) GetWorkspace(ctx context.Context, workspaceID string) (*Workspa
 	defer rawResp.Body.Close()
 	return resp, nil
 }
+
+type SetOrDeleteWorkspaceRoleParams struct {
+	WorkspaceID string
+	UserID      string
+	RoleID      string
+}
+
+func (c *Client) SetWorkspaceRole(ctx context.Context, p SetOrDeleteWorkspaceRoleParams) error {
+	urlpath, err := url.Parse(basePath + fmt.Sprintf(getWorkspaceUserPath, p.WorkspaceID, p.UserID))
+	if err != nil {
+		return err
+	}
+
+	values := url.Values{}
+	if p.RoleID != "" {
+		values.Add("roleId", p.RoleID)
+	}
+
+	req, err := c.httpClient.NewRequest(ctx,
+		http.MethodPut,
+		urlpath,
+		uhttp.WithFormBody(values.Encode()),
+		uhttp.WithAcceptJSONHeader(),
+		uhttp.WithContentTypeJSONHeader(),
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.httpClient.Do(req)
+	return err
+}
+
+func (c *Client) RemoveWorkspaceUser(ctx context.Context, p SetOrDeleteWorkspaceRoleParams) error {
+	urlpath, err := url.Parse(basePath + fmt.Sprintf(getWorkspaceUserPath, p.WorkspaceID, p.UserID))
+	if err != nil {
+		return err
+	}
+
+	req, err := c.httpClient.NewRequest(ctx,
+		http.MethodDelete,
+		urlpath,
+		uhttp.WithAcceptJSONHeader(),
+		uhttp.WithContentTypeJSONHeader(),
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.httpClient.Do(req)
+	return err
+}

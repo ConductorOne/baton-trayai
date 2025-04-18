@@ -124,6 +124,49 @@ func (r *roleBuilder) Grants(ctx context.Context, v2Resource *v2.Resource, pToke
 	return rv, "", nil, nil
 }
 
+func (r *roleBuilder) Grant(ctx context.Context, principal *v2.Resource, entitlement *v2.Entitlement) (annotations.Annotations, error) {
+	if principal == nil || principal.Id == nil {
+		return nil, fmt.Errorf("baton-trayai: principal is nil")
+	}
+
+	if entitlement == nil || entitlement.Resource == nil || entitlement.Resource.Id == nil {
+		return nil, fmt.Errorf("baton-trayai: entitlement resource is nil")
+	}
+
+	if principal.Id.ResourceType != userResourceType.Id {
+		return nil, fmt.Errorf("baton-trayai: only users can be assigned a role")
+	}
+
+	if entitlement.Resource.ParentResourceId == nil {
+		return nil, fmt.Errorf("baton-trayai: entitlement resource has no parent resource id")
+	}
+
+	return nil, r.client.SetWorkspaceRole(ctx, client.SetOrDeleteWorkspaceRoleParams{
+		WorkspaceID: entitlement.Resource.ParentResourceId.Resource,
+		UserID:      principal.Id.Resource,
+		RoleID:      entitlement.Resource.Id.Resource,
+	})
+}
+
+func (r *roleBuilder) Revoke(ctx context.Context, grant *v2.Grant) (annotations.Annotations, error) {
+	if grant == nil || grant.Principal == nil || grant.Principal.Id == nil {
+		return nil, fmt.Errorf("baton-trayai: grant is nil")
+	}
+
+	if grant.Principal.Id.ResourceType != userResourceType.Id {
+		return nil, fmt.Errorf("baton-trayai: only users can have roles revoked")
+	}
+
+	if grant.Entitlement == nil || grant.Entitlement.Resource == nil || grant.Entitlement.Resource.ParentResourceId == nil {
+		return nil, fmt.Errorf("baton-trayai: entitlement resource has no parent resource id")
+	}
+
+	return nil, r.client.RemoveWorkspaceUser(ctx, client.SetOrDeleteWorkspaceRoleParams{
+		WorkspaceID: grant.Entitlement.Resource.ParentResourceId.Resource,
+		UserID:      grant.Principal.Id.Resource,
+	})
+}
+
 func newRoleBuilder(c *client.Client, wb *workspaceBuilder) *roleBuilder {
 	return &roleBuilder{
 		client:   c,
