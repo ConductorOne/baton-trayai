@@ -322,16 +322,21 @@ func (c *Client) SetWorkspaceRole(ctx context.Context, p SetOrDeleteWorkspaceRol
 	req, err := c.httpClient.NewRequest(ctx,
 		http.MethodPut,
 		urlpath,
-		uhttp.WithFormBody(values.Encode()),
+		uhttp.WithJSONBody(map[string]string{
+			"roleId": p.RoleID,
+		}),
 		uhttp.WithAcceptJSONHeader(),
-		uhttp.WithContentTypeJSONHeader(),
 	)
 	if err != nil {
 		return err
 	}
 
-	_, err = c.httpClient.Do(req)
-	return err
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
 }
 
 func (c *Client) RemoveWorkspaceUser(ctx context.Context, p SetOrDeleteWorkspaceRoleParams) error {
@@ -350,6 +355,10 @@ func (c *Client) RemoveWorkspaceUser(ctx context.Context, p SetOrDeleteWorkspace
 		return err
 	}
 
-	_, err = c.httpClient.Do(req)
-	return err
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
 }
