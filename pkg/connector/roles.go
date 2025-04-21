@@ -3,6 +3,7 @@ package connector
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
@@ -19,7 +20,7 @@ func roleResource(e client.Element, parentResourceID *v2.ResourceId) (*v2.Resour
 	r, err := resource.NewRoleResource(
 		e.Name,
 		roleResourceType,
-		e.ID,
+		fmt.Sprintf("%s:%s", parentResourceID.Resource, e.ID),
 		nil,
 		resource.WithParentResourceID(parentResourceID),
 	)
@@ -109,9 +110,14 @@ func (r *roleBuilder) Grants(ctx context.Context, v2Resource *v2.Resource, pToke
 		return nil, "", nil, err
 	}
 
+	resourceIDs := strings.Split(v2Resource.Id.Resource, ":")
+	if len(resourceIDs) != 2 {
+		return nil, "", nil, fmt.Errorf("baton-trayai: invalid resource ID: %s", v2Resource.Id.Resource)
+	}
+
 	rv := make([]*v2.Grant, 0, len(workspaceUsers))
 	for _, user := range workspaceUsers {
-		if v2Resource.Id.Resource != user.Role.ID {
+		if resourceIDs[1] != user.Role.ID {
 			continue
 		}
 
