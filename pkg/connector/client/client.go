@@ -81,9 +81,9 @@ func (c *Client) ListUsers(ctx context.Context, params ListParams) (*ListResp, e
 
 // CreateUserParams is the parameters passed to CreateUser().
 type CreateUserParams struct {
-	Name               string
-	Email              string
-	OrganizationRoleId string
+	Name               string `json:"name"`
+	Email              string `json:"email"`
+	OrganizationRoleId string `json:"organizationRoleId"`
 }
 
 // CreateUser is used to create user in tray.ai.
@@ -96,9 +96,8 @@ func (c *Client) CreateUser(ctx context.Context, params *CreateUserParams) (*Use
 	req, err := c.httpClient.NewRequest(ctx,
 		http.MethodPost,
 		urlpath,
-		uhttp.WithFormBody(toValues(params)),
+		uhttp.WithJSONBody(params),
 		uhttp.WithAcceptJSONHeader(),
-		uhttp.WithContentTypeJSONHeader(),
 	)
 	if err != nil {
 		return nil, err
