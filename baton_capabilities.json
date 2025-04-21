@@ -10,7 +10,8 @@
         ]
       },
       "capabilities": [
-        "CAPABILITY_SYNC"
+        "CAPABILITY_SYNC",
+        "CAPABILITY_PROVISION"
       ]
     },
     {
@@ -40,6 +41,7 @@
     }
   ],
   "connectorCapabilities": [
+    "CAPABILITY_PROVISION",
     "CAPABILITY_SYNC",
     "CAPABILITY_ACCOUNT_PROVISIONING"
   ],
