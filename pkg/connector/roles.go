@@ -165,6 +165,9 @@ func (r *roleBuilder) Grant(ctx context.Context, principal *v2.Resource, entitle
 	}, nil, nil
 }
 
+// Revoke revokes the user from the workspace or organization.
+// 1. if the workspace is an organization, RemoveOrganizationUser is called.
+// 2. if the workspace is not an organization, RemoveWorkspaceUser is called.
 func (r *roleBuilder) Revoke(ctx context.Context, grant *v2.Grant) (annotations.Annotations, error) {
 	if grant == nil || grant.Principal == nil || grant.Principal.Id == nil {
 		return nil, fmt.Errorf("baton-trayai: grant is nil")
@@ -178,10 +181,29 @@ func (r *roleBuilder) Revoke(ctx context.Context, grant *v2.Grant) (annotations.
 		return nil, fmt.Errorf("baton-trayai: entitlement resource has no parent resource id")
 	}
 
-	return nil, r.client.RemoveWorkspaceUser(ctx, client.SetOrDeleteWorkspaceRoleParams{
-		WorkspaceID: grant.Entitlement.Resource.ParentResourceId.Resource,
-		UserID:      grant.Principal.Id.Resource,
-	})
+	params := client.SetOrDeleteWorkspaceRoleParams{
+		UserID: grant.Principal.Id.Resource,
+	}
+
+	workspaceID := grant.Entitlement.Resource.ParentResourceId.Resource
+	isOrg, err := isOrganization(workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("baton-trayai: isOrganization failed: %w", err)
+	}
+
+	if !isOrg {
+		params.WorkspaceID = workspaceID
+		return nil, r.client.RemoveWorkspaceUser(ctx, params)
+	}
+	return nil, r.client.RemoveOrganizationUser(ctx, params)
+}
+
+func isOrganization(workspaceID string) (bool, error) {
+	resp, err := r.client.GetWorkspace(ctx, workspaceID)
+	if err != nil {
+		return false, fmt.Errorf("baton-trayai: GetWorkspace failed: %w", err)
+	}
+	return resp.Type == "Organization", nil
 }
 
 func newRoleBuilder(c *client.Client, wb *workspaceBuilder) *roleBuilder {

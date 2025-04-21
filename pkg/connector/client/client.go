@@ -362,3 +362,27 @@ func (c *Client) RemoveWorkspaceUser(ctx context.Context, p SetOrDeleteWorkspace
 	defer resp.Body.Close()
 	return nil
 }
+
+func (c *Client) RemoveOrganizationUser(ctx context.Context, p SetOrDeleteWorkspaceRoleParams) error {
+	urlpath, err := url.Parse(basePath + fmt.Sprintf(getUserPath, p.UserID))
+	if err != nil {
+		return err
+	}
+
+	req, err := c.httpClient.NewRequest(ctx,
+		http.MethodDelete,
+		urlpath,
+		uhttp.WithAcceptJSONHeader(),
+		uhttp.WithContentTypeJSONHeader(),
+	)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
+}
