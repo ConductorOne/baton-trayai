@@ -301,19 +301,3 @@ func (c *Client) GetWorkspace(ctx context.Context, workspaceID string) (*Workspa
 	defer rawResp.Body.Close()
 	return resp, nil
 }
-
-func toValues(p *CreateUserParams) string {
-	values := url.Values{}
-	if p.Name != "" {
-		values.Add("name", p.Name)
-	}
-
-	if p.Email != "" {
-		values.Add("email", p.Email)
-	}
-
-	if p.OrganizationRoleId != "" {
-		values.Add("organizationRoleId", p.OrganizationRoleId)
-	}
-	return values.Encode()
-}
