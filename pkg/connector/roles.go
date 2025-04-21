@@ -186,7 +186,7 @@ func (r *roleBuilder) Revoke(ctx context.Context, grant *v2.Grant) (annotations.
 	}
 
 	workspaceID := grant.Entitlement.Resource.ParentResourceId.Resource
-	isOrg, err := isOrganization(workspaceID)
+	isOrg, err := r.isOrganization(ctx, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("baton-trayai: isOrganization failed: %w", err)
 	}
@@ -198,7 +198,7 @@ func (r *roleBuilder) Revoke(ctx context.Context, grant *v2.Grant) (annotations.
 	return nil, r.client.RemoveOrganizationUser(ctx, params)
 }
 
-func isOrganization(workspaceID string) (bool, error) {
+func (r *roleBuilder) isOrganization(ctx context.Context, workspaceID string) (bool, error) {
 	resp, err := r.client.GetWorkspace(ctx, workspaceID)
 	if err != nil {
 		return false, fmt.Errorf("baton-trayai: GetWorkspace failed: %w", err)
