@@ -12,6 +12,8 @@ import (
 	trayclient "github.com/conductorone/baton-trayai/pkg/connector/client"
 )
 
+var _ connectorbuilder.ResourceProvisionerV2 = (*roleBuilder)(nil)
+
 type Connector struct {
 	client *trayclient.Client
 }
