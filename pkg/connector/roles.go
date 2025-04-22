@@ -3,6 +3,7 @@ package connector
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
@@ -19,7 +20,7 @@ func roleResource(e client.Element, parentResourceID *v2.ResourceId) (*v2.Resour
 	r, err := resource.NewRoleResource(
 		e.Name,
 		roleResourceType,
-		e.ID,
+		fmt.Sprintf("%s:%s", parentResourceID.Resource, e.ID),
 		nil,
 		resource.WithParentResourceID(parentResourceID),
 	)
@@ -109,9 +110,14 @@ func (r *roleBuilder) Grants(ctx context.Context, v2Resource *v2.Resource, pToke
 		return nil, "", nil, err
 	}
 
+	resourceIDs := strings.Split(v2Resource.Id.Resource, ":")
+	if len(resourceIDs) != 2 {
+		return nil, "", nil, fmt.Errorf("baton-trayai: invalid resource ID: %s", v2Resource.Id.Resource)
+	}
+
 	rv := make([]*v2.Grant, 0, len(workspaceUsers))
 	for _, user := range workspaceUsers {
-		if v2Resource.Id.Resource != user.Role.ID {
+		if resourceIDs[1] != user.Role.ID {
 			continue
 		}
 
@@ -124,28 +130,39 @@ func (r *roleBuilder) Grants(ctx context.Context, v2Resource *v2.Resource, pToke
 	return rv, "", nil, nil
 }
 
-func (r *roleBuilder) Grant(ctx context.Context, principal *v2.Resource, entitlement *v2.Entitlement) (annotations.Annotations, error) {
+func (r *roleBuilder) Grant(ctx context.Context, principal *v2.Resource, entitlement *v2.Entitlement) ([]*v2.Grant, annotations.Annotations, error) {
 	if principal == nil || principal.Id == nil {
-		return nil, fmt.Errorf("baton-trayai: principal is nil")
+		return nil, nil, fmt.Errorf("baton-trayai: principal is nil")
 	}
 
 	if entitlement == nil || entitlement.Resource == nil || entitlement.Resource.Id == nil {
-		return nil, fmt.Errorf("baton-trayai: entitlement resource is nil")
+		return nil, nil, fmt.Errorf("baton-trayai: entitlement resource is nil")
 	}
 
 	if principal.Id.ResourceType != userResourceType.Id {
-		return nil, fmt.Errorf("baton-trayai: only users can be assigned a role")
+		return nil, nil, fmt.Errorf("baton-trayai: only users can be assigned a role")
 	}
 
 	if entitlement.Resource.ParentResourceId == nil {
-		return nil, fmt.Errorf("baton-trayai: entitlement resource has no parent resource id")
+		return nil, nil, fmt.Errorf("baton-trayai: entitlement resource has no parent resource id")
 	}
 
-	return nil, r.client.SetWorkspaceRole(ctx, client.SetOrDeleteWorkspaceRoleParams{
+	resourceIDs := strings.Split(entitlement.Resource.Id.Resource, ":")
+	if len(resourceIDs) != 2 {
+		return nil, nil, fmt.Errorf("baton-trayai: invalid resource ID: %s", entitlement.Resource.Id.Resource)
+	}
+
+	err := r.client.SetWorkspaceRole(ctx, client.SetOrDeleteWorkspaceRoleParams{
 		WorkspaceID: entitlement.Resource.ParentResourceId.Resource,
 		UserID:      principal.Id.Resource,
-		RoleID:      entitlement.Resource.Id.Resource,
+		RoleID:      resourceIDs[1],
 	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("baton-trayai: SetWorkspaceRole failed: %w", err)
+	}
+	return []*v2.Grant{
+		grant.NewGrant(entitlement.Resource, RoleAssignmentEntitlement, principal.Id),
+	}, nil, nil
 }
 
 func (r *roleBuilder) Revoke(ctx context.Context, grant *v2.Grant) (annotations.Annotations, error) {
