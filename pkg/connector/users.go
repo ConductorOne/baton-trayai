@@ -33,6 +33,8 @@ func userResource(
 		[]resource.UserTraitOption{
 			resource.WithStatus(v2.UserTrait_Status_STATUS_ENABLED),
 			resource.WithUserProfile(profile),
+			resource.WithEmail(user.Email, true),
+			resource.WithUserLogin(user.Name),
 		},
 		resource.WithParentResourceID(parentResourceID),
 	)
