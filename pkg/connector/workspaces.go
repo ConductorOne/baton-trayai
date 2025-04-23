@@ -110,11 +110,21 @@ func (w *workspaceBuilder) Entitlements(ctx context.Context, resource *v2.Resour
 
 // Grants returns grants for workspace.
 func (w *workspaceBuilder) Grants(ctx context.Context, r *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	resp, err := w.client.ListWorkspaceUsers(ctx, client.ListParams{
-		Cursor:      pToken.Token,
-		First:       pToken.Size,
-		WorkspaceID: r.Id.Resource,
-	})
+	params := client.ListParams{
+		Cursor: pToken.Token,
+		First:  pToken.Size,
+	}
+
+	isOrg, err := w.isOrganization(ctx, r.Id.Resource)
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("baton-trayai: isOrganization failed: %w", err)
+	}
+
+	if !isOrg {
+		params.WorkspaceID = r.Id.Resource
+	}
+
+	resp, err := w.client.ListWorkspaceUsers(ctx, params)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("baton-trayai: ListWorkspaceUsers failed: %w", err)
 	}
@@ -160,18 +170,26 @@ func (w *workspaceBuilder) getWorkspaceUsers(ctx context.Context, workspaceID st
 		return workspaceUsers, nil
 	}
 
-	cursor := ""
+	params := client.ListParams{
+		Cursor: "",
+	}
+	isOrg, err := w.isOrganization(ctx, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("baton-trayai: isOrganization failed: %w", err)
+	}
+
+	if !isOrg {
+		params.WorkspaceID = workspaceID
+	}
+
 	for {
-		resp, err := w.client.ListWorkspaceUsers(ctx, client.ListParams{
-			Cursor:      cursor,
-			WorkspaceID: workspaceID,
-		})
+		resp, err := w.client.ListWorkspaceUsers(ctx, params)
 		if err != nil {
 			return nil, fmt.Errorf("baton-trayai: ListWorkspaceUsers failed: %w", err)
 		}
 
 		for _, element := range resp.Elements {
-			user, err := w.client.GetWorkspaceUser(ctx, element.ID, workspaceID)
+			user, err := w.client.GetWorkspaceUser(ctx, element.ID, params.WorkspaceID)
 			if err != nil {
 				return nil, fmt.Errorf("baton-trayai: GetWorkspaceUser failed: %w", err)
 			}
@@ -183,10 +201,10 @@ func (w *workspaceBuilder) getWorkspaceUsers(ctx context.Context, workspaceID st
 			break
 		}
 
-		if cursor == resp.Page.EndCursor {
+		if params.Cursor == resp.Page.EndCursor {
 			return nil, fmt.Errorf("baton-trayai: current cursor shouldn't be equal to endCursor")
 		}
-		cursor = resp.Page.EndCursor
+		params.Cursor = resp.Page.EndCursor
 	}
 
 	w.workspaceUsers[workspaceID] = workspaceUsers
@@ -197,4 +215,12 @@ func newWorkspaceBuild(c *client.Client) *workspaceBuilder {
 		client:         c,
 		workspaceUsers: make(map[string][]*client.User),
 	}
+}
+
+func (w *workspaceBuilder) isOrganization(ctx context.Context, workspaceID string) (bool, error) {
+	resp, err := w.client.GetWorkspace(ctx, workspaceID)
+	if err != nil {
+		return false, fmt.Errorf("baton-trayai: GetWorkspace failed: %w", err)
+	}
+	return resp.Type == "Organization", nil
 }

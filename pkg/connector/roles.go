@@ -46,11 +46,20 @@ func (r *roleBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 		return nil, "", nil, nil
 	}
 
-	resp, err := r.client.ListWorkspaceRoles(ctx, client.ListParams{
-		Cursor:      pToken.Token,
-		First:       pToken.Size,
-		WorkspaceID: parentResourceID.Resource,
-	})
+	params := client.ListParams{
+		Cursor: pToken.Token,
+		First:  pToken.Size,
+	}
+	isOrg, err := r.isOrganization(ctx, parentResourceID.Resource)
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("baton-trayai: isOrganization failed: %w", err)
+	}
+
+	if !isOrg {
+		params.WorkspaceID = parentResourceID.Resource
+	}
+
+	resp, err := r.client.ListWorkspaceRoles(ctx, params)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("baton-trayai: List workspace roles failed: %w", err)
 	}
@@ -152,11 +161,21 @@ func (r *roleBuilder) Grant(ctx context.Context, principal *v2.Resource, entitle
 		return nil, nil, fmt.Errorf("baton-trayai: invalid resource ID: %s", entitlement.Resource.Id.Resource)
 	}
 
-	err := r.client.SetWorkspaceRole(ctx, client.SetOrDeleteWorkspaceRoleParams{
-		WorkspaceID: entitlement.Resource.ParentResourceId.Resource,
-		UserID:      principal.Id.Resource,
-		RoleID:      resourceIDs[1],
-	})
+	params := client.SetOrDeleteWorkspaceRoleParams{
+		UserID: principal.Id.Resource,
+		RoleID: resourceIDs[1],
+	}
+	workspaceID := entitlement.Resource.ParentResourceId.Resource
+	isOrg, err := r.isOrganization(ctx, workspaceID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("baton-trayai: isOrganization failed: %w", err)
+	}
+
+	if !isOrg {
+		params.WorkspaceID = workspaceID
+	}
+
+	err = r.client.SetWorkspaceRole(ctx, params)
 	if err != nil {
 		return nil, nil, fmt.Errorf("baton-trayai: SetWorkspaceRole failed: %w", err)
 	}
@@ -195,6 +214,7 @@ func (r *roleBuilder) Revoke(ctx context.Context, grant *v2.Grant) (annotations.
 		params.WorkspaceID = workspaceID
 		return nil, r.client.RemoveWorkspaceUser(ctx, params)
 	}
+
 	return nil, r.client.RemoveOrganizationUser(ctx, params)
 }
 

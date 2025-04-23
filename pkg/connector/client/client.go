@@ -163,7 +163,13 @@ func (c *Client) ListWorkspaces(ctx context.Context, params ListParams) (*ListRe
 }
 
 func (c *Client) ListWorkspaceRoles(ctx context.Context, params ListParams) (*ListResp, error) {
-	urlpath, err := url.Parse(basePath + fmt.Sprintf(listWorkspaceRolesPath, params.WorkspaceID))
+	// If the workspaceID is not provided, we list the organization roles.
+	trayPath := listOrganizationRolesPath
+	if params.WorkspaceID != "" {
+		trayPath = fmt.Sprintf(listWorkspaceRolesPath, params.WorkspaceID)
+	}
+
+	urlpath, err := url.Parse(basePath + trayPath)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +198,12 @@ func (c *Client) ListWorkspaceRoles(ctx context.Context, params ListParams) (*Li
 }
 
 func (c *Client) ListWorkspaceUsers(ctx context.Context, params ListParams) (*ListResp, error) {
-	urlpath, err := url.Parse(basePath + fmt.Sprintf(listWorkspaceUsersPath, params.WorkspaceID))
+	trayPath := listUsersPath
+	if params.WorkspaceID != "" {
+		trayPath = fmt.Sprintf(listWorkspaceUsersPath, params.WorkspaceID)
+	}
+
+	urlpath, err := url.Parse(basePath + trayPath)
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +261,12 @@ func (c *Client) GetOrganizationUser(ctx context.Context, userID string) (*User,
 // GetWorkspaceUser is different from GetOrganizationUser since one user could have different roles in
 // different workspaces.
 func (c *Client) GetWorkspaceUser(ctx context.Context, userID string, workspaceID string) (*User, error) {
-	urlpath, err := url.Parse(basePath + fmt.Sprintf(getWorkspaceUserPath, workspaceID, userID))
+	trayPath := fmt.Sprintf(getUserPath, userID)
+	if workspaceID != "" {
+		trayPath = fmt.Sprintf(getWorkspaceUserPath, workspaceID, userID)
+	}
+
+	urlpath, err := url.Parse(basePath + trayPath)
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +325,12 @@ type SetOrDeleteWorkspaceRoleParams struct {
 }
 
 func (c *Client) SetWorkspaceRole(ctx context.Context, p SetOrDeleteWorkspaceRoleParams) error {
-	urlpath, err := url.Parse(basePath + fmt.Sprintf(getWorkspaceUserPath, p.WorkspaceID, p.UserID))
+	// We don't need to pass in the workspaceID if the user is an organization user.
+	trayPath := fmt.Sprintf(getOrganizationRolePath, p.UserID)
+	if p.WorkspaceID != "" {
+		trayPath = fmt.Sprintf(getWorkspaceUserPath, p.WorkspaceID, p.UserID)
+	}
+	urlpath, err := url.Parse(basePath + trayPath)
 	if err != nil {
 		return err
 	}
