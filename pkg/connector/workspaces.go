@@ -264,7 +264,6 @@ func (w *workspaceBuilder) Grant(ctx context.Context, principal *v2.Resource, en
 	}, nil, nil
 }
 
-// We don't need to revoke a user from a workspace because the user will be removed from the workspace when the entitlement is deleted.
 func (w *workspaceBuilder) Revoke(ctx context.Context, grant *v2.Grant) (annotations.Annotations, error) {
 	if grant == nil || grant.Principal == nil || grant.Principal.Id == nil {
 		return nil, fmt.Errorf("baton-trayai: grant is nil")
