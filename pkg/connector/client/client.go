@@ -113,6 +113,35 @@ func (c *Client) CreateUser(ctx context.Context, params *CreateUserParams) (*Use
 	return resp, nil
 }
 
+type AddUserToWorkspaceParams SetOrDeleteWorkspaceRoleParams
+
+func (c *Client) AddUserToWorkspace(ctx context.Context, p AddUserToWorkspaceParams) error {
+	urlpath, err := url.Parse(basePath + fmt.Sprintf(listWorkspaceUsersPath, p.WorkspaceID))
+	if err != nil {
+		return err
+	}
+
+	req, err := c.httpClient.NewRequest(ctx,
+		http.MethodPost,
+		urlpath,
+		uhttp.WithJSONBody(map[string]string{
+			"roleId": p.RoleID,
+			"userId": p.UserID,
+		}),
+		uhttp.WithAcceptJSONHeader(),
+	)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	return nil
+}
+
 func toQuery(url *url.URL, p ListParams) string {
 	q := url.Query()
 	if p.Cursor != "" {

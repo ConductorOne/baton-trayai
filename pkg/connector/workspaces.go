@@ -3,6 +3,7 @@ package connector
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
@@ -95,11 +96,17 @@ func (w *workspaceBuilder) Entitlements(ctx context.Context, resource *v2.Resour
 			entitlement.WithDescription(fmt.Sprintf("%s access to %s in tray.ai", role.Name, resource.DisplayName)),
 		}
 
-		ents = append(ents, entitlement.NewAssignmentEntitlement(
-			resource,
-			role.Name,
-			assignmentOptions...,
-		))
+		ent := &v2.Entitlement{
+			Id:          entitlement.NewEntitlementID(resource, role.ID),
+			DisplayName: role.Name,
+			Slug:        role.Name,
+			Purpose:     v2.Entitlement_PURPOSE_VALUE_ASSIGNMENT,
+			Resource:    resource,
+		}
+		for _, entitlementOption := range assignmentOptions {
+			entitlementOption(ent)
+		}
+		ents = append(ents, ent)
 	}
 
 	if !resp.Page.HasNextPage {
@@ -146,7 +153,7 @@ func (w *workspaceBuilder) Grants(ctx context.Context, r *v2.Resource, pToken *p
 
 		grants = append(grants, grant.NewGrant(
 			r,
-			user.Role.Name,
+			user.Role.ID,
 			userResource,
 		))
 
@@ -223,4 +230,68 @@ func (w *workspaceBuilder) isOrganization(ctx context.Context, workspaceID strin
 		return false, fmt.Errorf("baton-trayai: GetWorkspace failed: %w", err)
 	}
 	return resp.Type == "Organization", nil
+}
+
+func (w *workspaceBuilder) Grant(ctx context.Context, principal *v2.Resource, entitlement *v2.Entitlement) ([]*v2.Grant, annotations.Annotations, error) {
+	if principal == nil || principal.Id == nil {
+		return nil, nil, fmt.Errorf("baton-trayai: principal is nil")
+	}
+
+	if entitlement == nil || entitlement.Resource == nil || entitlement.Resource.Id == nil {
+		return nil, nil, fmt.Errorf("baton-trayai: entitlement resource is nil")
+	}
+
+	if principal.Id.ResourceType != userResourceType.Id {
+		return nil, nil, fmt.Errorf("baton-trayai: only users can be assigned to a workspace")
+	}
+
+	resourceIDs := strings.Split(entitlement.Id, ":")
+	if len(resourceIDs) != 3 {
+		return nil, nil, fmt.Errorf("baton-trayai: invalid resource ID: %s", entitlement.Id)
+	}
+
+	params := client.AddUserToWorkspaceParams{
+		WorkspaceID: entitlement.Resource.Id.Resource,
+		UserID:      principal.Id.Resource,
+		RoleID:      resourceIDs[2],
+	}
+	err := w.client.AddUserToWorkspace(ctx, params)
+	if err != nil {
+		return nil, nil, fmt.Errorf("baton-trayai: AddUserToWorkspace failed: %w", err)
+	}
+	return []*v2.Grant{
+		grant.NewGrant(entitlement.Resource, entitlement.Id, principal.Id),
+	}, nil, nil
+}
+
+// We don't need to revoke a user from a workspace because the user will be removed from the workspace when the entitlement is deleted.
+func (w *workspaceBuilder) Revoke(ctx context.Context, grant *v2.Grant) (annotations.Annotations, error) {
+	if grant == nil || grant.Principal == nil || grant.Principal.Id == nil {
+		return nil, fmt.Errorf("baton-trayai: grant is nil")
+	}
+
+	if grant.Principal.Id.ResourceType != userResourceType.Id {
+		return nil, fmt.Errorf("baton-trayai: only users can have roles revoked")
+	}
+
+	if grant.Entitlement == nil || grant.Entitlement.Resource == nil {
+		return nil, fmt.Errorf("baton-trayai: entitlement resource is empty")
+	}
+
+	params := client.SetOrDeleteWorkspaceRoleParams{
+		UserID: grant.Principal.Id.Resource,
+	}
+
+	workspaceID := grant.Entitlement.Resource.Id.Resource
+	isOrg, err := w.isOrganization(ctx, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("baton-trayai: isOrganization failed: %w", err)
+	}
+
+	if !isOrg {
+		params.WorkspaceID = workspaceID
+		return nil, w.client.RemoveWorkspaceUser(ctx, params)
+	}
+
+	return nil, w.client.RemoveOrganizationUser(ctx, params)
 }
