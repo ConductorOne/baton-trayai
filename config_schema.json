@@ -2,8 +2,10 @@
   "fields": [
     {
       "name": "auth-token",
+      "displayName": "Authentication token",
       "description": "auth-token for authenticating with the service",
       "isRequired": true,
+      "isSecret": true,
       "stringField": {
         "rules": {
           "isRequired": true
@@ -54,5 +56,8 @@
       "isOps": true,
       "boolField": {}
     }
-  ]
+  ],
+  "displayName": "Tray.ai",
+  "helpUrl": "/docs/baton/trayai",
+  "iconUrl": "/static/app-icons/trayai.svg"
 }
