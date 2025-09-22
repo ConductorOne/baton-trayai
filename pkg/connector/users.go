@@ -12,6 +12,8 @@ import (
 	"github.com/conductorone/baton-trayai/pkg/connector/client"
 )
 
+var _ connectorbuilder.AccountManager = &userBuilder{}
+
 // Create a new connector resource for a tray.ai user.
 func userResource(
 	_ context.Context,
