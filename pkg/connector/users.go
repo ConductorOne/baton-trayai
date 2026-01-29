@@ -123,7 +123,7 @@ func (o *userBuilder) CreateAccount(ctx context.Context, accountInfo *v2.Account
 
 	r, err := userResource(ctx, user, nil)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("baton-slack: cannot create user resource: %w", err)
+		return nil, nil, nil, fmt.Errorf("baton-trayai: cannot create user resource: %w", err)
 	}
 
 	return &v2.CreateAccountResponse_SuccessResult{

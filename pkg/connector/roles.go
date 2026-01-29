@@ -76,7 +76,10 @@ func (r *roleBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 		}
 		roles = append(roles, r)
 	}
-	return roles, nil, nil
+	if !resp.Page.HasNextPage {
+		return roles, nil, nil
+	}
+	return roles, &sdkResource.SyncOpResults{NextPageToken: resp.Page.EndCursor}, nil
 }
 
 func (r *roleBuilder) Entitlements(ctx context.Context, resource *v2.Resource, opts sdkResource.SyncOpAttrs) ([]*v2.Entitlement, *sdkResource.SyncOpResults, error) {
