@@ -7,12 +7,12 @@ import (
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
-	"github.com/conductorone/baton-sdk/pkg/pagination"
-	"github.com/conductorone/baton-sdk/pkg/types/resource"
+	sdkResource "github.com/conductorone/baton-sdk/pkg/types/resource"
 	"github.com/conductorone/baton-trayai/pkg/connector/client"
 )
 
-var _ connectorbuilder.AccountManager = &userBuilder{}
+var _ connectorbuilder.ResourceSyncerV2 = &userBuilder{}
+var _ connectorbuilder.AccountManagerV2 = &userBuilder{}
 
 // Create a new connector resource for a tray.ai user.
 func userResource(
@@ -28,17 +28,17 @@ func userResource(
 		"role":        user.Role.Name,
 	}
 
-	return resource.NewUserResource(
+	return sdkResource.NewUserResource(
 		user.Name,
 		userResourceType,
 		user.ID,
-		[]resource.UserTraitOption{
-			resource.WithStatus(v2.UserTrait_Status_STATUS_ENABLED),
-			resource.WithUserProfile(profile),
-			resource.WithEmail(user.Email, true),
-			resource.WithUserLogin(user.Name),
+		[]sdkResource.UserTraitOption{
+			sdkResource.WithStatus(v2.UserTrait_Status_STATUS_ENABLED),
+			sdkResource.WithUserProfile(profile),
+			sdkResource.WithEmail(user.Email, true),
+			sdkResource.WithUserLogin(user.Name),
 		},
-		resource.WithParentResourceID(parentResourceID),
+		sdkResource.WithParentResourceID(parentResourceID),
 	)
 }
 
@@ -52,47 +52,48 @@ func (o *userBuilder) ResourceType(ctx context.Context) *v2.ResourceType {
 
 // List returns all the users from the database as resource objects.
 // Users include a UserTrait because they are the 'shape' of a standard user.
-func (o *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId, pToken *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
+func (o *userBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId, opts sdkResource.SyncOpAttrs) ([]*v2.Resource, *sdkResource.SyncOpResults, error) {
 	var (
 		users []*v2.Resource
 	)
 
+	pToken := opts.PageToken
 	resp, err := o.client.ListUsers(ctx, client.ListParams{
 		Cursor: pToken.Token,
 		First:  pToken.Size,
 	})
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("baton-trayai: ListUsers failed: %w", err)
+		return nil, nil, fmt.Errorf("baton-trayai: ListUsers failed: %w", err)
 	}
 
 	for _, element := range resp.Elements {
 		user, err := o.client.GetOrganizationUser(ctx, element.ID)
 		if err != nil {
-			return nil, "", nil, fmt.Errorf("baton-trayai: GetUser failed: %w", err)
+			return nil, nil, fmt.Errorf("baton-trayai: GetUser failed: %w", err)
 		}
 
 		vUser, err := userResource(ctx, user, parentResourceID)
 		if err != nil {
-			return nil, "", nil, fmt.Errorf("baton-trayai: cannot create connector resource: %w", err)
+			return nil, nil, fmt.Errorf("baton-trayai: cannot create connector resource: %w", err)
 		}
 
 		users = append(users, vUser)
 	}
 
 	if !resp.Page.HasNextPage {
-		return users, "", nil, nil
+		return users, nil, nil
 	}
-	return users, resp.Page.EndCursor, nil, nil
+	return users, &sdkResource.SyncOpResults{NextPageToken: resp.Page.EndCursor}, nil
 }
 
 // Entitlements always returns an empty slice for users.
-func (o *userBuilder) Entitlements(_ context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
-	return nil, "", nil, nil
+func (o *userBuilder) Entitlements(_ context.Context, resource *v2.Resource, opts sdkResource.SyncOpAttrs) ([]*v2.Entitlement, *sdkResource.SyncOpResults, error) {
+	return nil, nil, nil
 }
 
 // Grants always returns an empty slice for users since they don't have any entitlements.
-func (o *userBuilder) Grants(ctx context.Context, resource *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	return nil, "", nil, nil
+func (o *userBuilder) Grants(ctx context.Context, resource *v2.Resource, opts sdkResource.SyncOpAttrs) ([]*v2.Grant, *sdkResource.SyncOpResults, error) {
+	return nil, nil, nil
 }
 
 func (o *userBuilder) CreateAccountCapabilityDetails(ctx context.Context) (*v2.CredentialDetailsAccountProvisioning, annotations.Annotations, error) {
@@ -122,7 +123,7 @@ func (o *userBuilder) CreateAccount(ctx context.Context, accountInfo *v2.Account
 
 	r, err := userResource(ctx, user, nil)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("baton-slack: cannot create user resource: %w", err)
+		return nil, nil, nil, fmt.Errorf("baton-trayai: cannot create user resource: %w", err)
 	}
 
 	return &v2.CreateAccountResponse_SuccessResult{

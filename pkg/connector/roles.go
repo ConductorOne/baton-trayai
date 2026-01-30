@@ -7,22 +7,22 @@ import (
 
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
-	"github.com/conductorone/baton-sdk/pkg/pagination"
+	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
 	"github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
-	"github.com/conductorone/baton-sdk/pkg/types/resource"
+	sdkResource "github.com/conductorone/baton-sdk/pkg/types/resource"
 	"github.com/conductorone/baton-trayai/pkg/connector/client"
 )
 
 const RoleAssignmentEntitlement = "assigned"
 
 func roleResource(e client.Element, parentResourceID *v2.ResourceId) (*v2.Resource, error) {
-	r, err := resource.NewRoleResource(
+	r, err := sdkResource.NewRoleResource(
 		e.Name,
 		roleResourceType,
 		fmt.Sprintf("%s:%s", parentResourceID.Resource, e.ID),
 		nil,
-		resource.WithParentResourceID(parentResourceID),
+		sdkResource.WithParentResourceID(parentResourceID),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("baton-trayai: cannot create roleResource: %w", err)
@@ -36,23 +36,27 @@ type roleBuilder struct {
 	wbuilder *workspaceBuilder
 }
 
+var _ connectorbuilder.ResourceSyncerV2 = &roleBuilder{}
+var _ connectorbuilder.ResourceProvisionerV2 = &roleBuilder{}
+
 func (r *roleBuilder) ResourceType(ctx context.Context) *v2.ResourceType {
 	return roleResourceType
 }
 
 // List lists all the organization roles.
-func (r *roleBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId, pToken *pagination.Token) ([]*v2.Resource, string, annotations.Annotations, error) {
+func (r *roleBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId, opts sdkResource.SyncOpAttrs) ([]*v2.Resource, *sdkResource.SyncOpResults, error) {
 	if parentResourceID == nil {
-		return nil, "", nil, nil
+		return nil, nil, nil
 	}
 
+	pToken := opts.PageToken
 	params := client.ListParams{
 		Cursor: pToken.Token,
 		First:  pToken.Size,
 	}
 	isOrg, err := r.isOrganization(ctx, parentResourceID.Resource)
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("baton-trayai: isOrganization failed: %w", err)
+		return nil, nil, fmt.Errorf("baton-trayai: isOrganization failed: %w", err)
 	}
 
 	if !isOrg {
@@ -61,28 +65,31 @@ func (r *roleBuilder) List(ctx context.Context, parentResourceID *v2.ResourceId,
 
 	resp, err := r.client.ListWorkspaceRoles(ctx, params)
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("baton-trayai: List workspace roles failed: %w", err)
+		return nil, nil, fmt.Errorf("baton-trayai: List workspace roles failed: %w", err)
 	}
 
 	roles := make([]*v2.Resource, 0, len(resp.Elements))
 	for _, role := range resp.Elements {
 		r, err := roleResource(role, parentResourceID)
 		if err != nil {
-			return nil, "", nil, fmt.Errorf("baton-trayai: cannot create role resource: %w", err)
+			return nil, nil, fmt.Errorf("baton-trayai: cannot create role resource: %w", err)
 		}
 		roles = append(roles, r)
 	}
-	return roles, "", nil, nil
+	if !resp.Page.HasNextPage {
+		return roles, nil, nil
+	}
+	return roles, &sdkResource.SyncOpResults{NextPageToken: resp.Page.EndCursor}, nil
 }
 
-func (r *roleBuilder) Entitlements(ctx context.Context, resource *v2.Resource, _ *pagination.Token) ([]*v2.Entitlement, string, annotations.Annotations, error) {
+func (r *roleBuilder) Entitlements(ctx context.Context, resource *v2.Resource, opts sdkResource.SyncOpAttrs) ([]*v2.Entitlement, *sdkResource.SyncOpResults, error) {
 	if resource == nil || resource.ParentResourceId == nil {
-		return nil, "", nil, nil
+		return nil, nil, nil
 	}
 
 	workspace, err := r.client.GetWorkspace(ctx, resource.ParentResourceId.Resource)
 	if err != nil {
-		return nil, "", nil, fmt.Errorf("baton-trayai: GetWorkspace failed: %w", err)
+		return nil, nil, fmt.Errorf("baton-trayai: GetWorkspace failed: %w", err)
 	}
 
 	ent := []*v2.Entitlement{
@@ -106,22 +113,22 @@ func (r *roleBuilder) Entitlements(ctx context.Context, resource *v2.Resource, _
 			),
 		),
 	}
-	return ent, "", nil, nil
+	return ent, nil, nil
 }
 
-func (r *roleBuilder) Grants(ctx context.Context, v2Resource *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
+func (r *roleBuilder) Grants(ctx context.Context, v2Resource *v2.Resource, opts sdkResource.SyncOpAttrs) ([]*v2.Grant, *sdkResource.SyncOpResults, error) {
 	if v2Resource == nil || v2Resource.ParentResourceId == nil {
-		return nil, "", nil, nil
+		return nil, nil, nil
 	}
 
 	workspaceUsers, err := r.wbuilder.getWorkspaceUsers(ctx, v2Resource.ParentResourceId.Resource)
 	if err != nil {
-		return nil, "", nil, err
+		return nil, nil, err
 	}
 
 	resourceIDs := strings.Split(v2Resource.Id.Resource, ":")
 	if len(resourceIDs) != 2 {
-		return nil, "", nil, fmt.Errorf("baton-trayai: invalid resource ID: %s", v2Resource.Id.Resource)
+		return nil, nil, fmt.Errorf("baton-trayai: invalid resource ID: %s", v2Resource.Id.Resource)
 	}
 
 	rv := make([]*v2.Grant, 0, len(workspaceUsers))
@@ -130,13 +137,13 @@ func (r *roleBuilder) Grants(ctx context.Context, v2Resource *v2.Resource, pToke
 			continue
 		}
 
-		userID, err := resource.NewResourceID(userResourceType, user.ID)
+		userID, err := sdkResource.NewResourceID(userResourceType, user.ID)
 		if err != nil {
-			return nil, "", nil, fmt.Errorf("baton-trayai: failed to create resourceID for user: %w", err)
+			return nil, nil, fmt.Errorf("baton-trayai: failed to create resourceID for user: %w", err)
 		}
 		rv = append(rv, grant.NewGrant(v2Resource, RoleAssignmentEntitlement, userID))
 	}
-	return rv, "", nil, nil
+	return rv, nil, nil
 }
 
 func (r *roleBuilder) Grant(ctx context.Context, principal *v2.Resource, entitlement *v2.Entitlement) ([]*v2.Grant, annotations.Annotations, error) {
