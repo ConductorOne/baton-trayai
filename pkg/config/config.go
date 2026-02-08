@@ -12,11 +12,16 @@ var (
 		field.WithIsSecret(true),
 		field.WithRequired(true),
 	)
+	BaseURLField = field.StringField(
+		"base-url",
+		field.WithDisplayName("Base URL"),
+		field.WithDescription("Override the Tray.ai API URL (for testing)"),
+	)
 )
 
 //go:generate go run ./gen
 var Config = field.NewConfiguration(
-	[]field.SchemaField{AuthorizationTokenField},
+	[]field.SchemaField{AuthorizationTokenField, BaseURLField},
 	field.WithConnectorDisplayName("Tray.ai"),
 	field.WithHelpUrl("/docs/baton/trayai"),
 	field.WithIconUrl("/static/app-icons/trayai.svg"),
