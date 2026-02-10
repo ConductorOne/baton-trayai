@@ -1,6 +1,6 @@
 ![Baton Logo](./baton-logo.png)
 
-# `baton-trayai` [![Go Reference](https://pkg.go.dev/badge/github.com/conductorone/baton-trayai.svg)](https://pkg.go.dev/github.com/conductorone/baton-trayai) ![main ci](https://github.com/conductorone/baton-trayai/actions/workflows/ci.yaml/badge.svg)
+# `baton-trayai` [![Go Reference](https://pkg.go.dev/badge/github.com/conductorone/baton-trayai.svg)](https://pkg.go.dev/github.com/conductorone/baton-trayai) ![main ci](https://github.com/conductorone/baton-trayai/actions/workflows/ci.yaml/badge.svg) ![verify](https://github.com/conductorone/baton-trayai/actions/workflows/verify.yaml/badge.svg)
 
 `baton-trayai` is a connector for built using the [Baton SDK](https://github.com/conductorone/baton-sdk).
 
