@@ -16,6 +16,7 @@ var (
 		"base-url",
 		field.WithDisplayName("Base URL"),
 		field.WithDescription("Override the Tray.ai API URL (for testing)"),
+		field.WithDefaultValue("https://api.tray.io"),
 		field.WithHidden(true),
 		field.WithExportTarget(field.ExportTargetCLIOnly),
 	)
