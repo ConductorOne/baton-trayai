@@ -5,6 +5,7 @@ import "reflect"
 
 type Trayai struct {
 	AuthToken string `mapstructure:"auth-token"`
+	BaseUrl string `mapstructure:"base-url"`
 }
 
 func (c *Trayai) findFieldByTag(tagValue string) (any, bool) {

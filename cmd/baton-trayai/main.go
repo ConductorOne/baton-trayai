@@ -47,7 +47,7 @@ func getConnector(ctx context.Context, tac *cfg.Trayai) (types.ConnectorServer, 
 	}
 
 	authToken := tac.AuthToken
-	cb, err := connector.New(ctx, authToken)
+	cb, err := connector.New(ctx, authToken, tac.BaseUrl)
 	if err != nil {
 		l.Error("error creating connector", zap.Error(err))
 		return nil, err
