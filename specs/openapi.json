@@ -1,0 +1,749 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Tray.ai Core API (baton-trayai surface)",
+    "version": "1.0.0",
+    "description": "The subset of the Tray.ai Core v1 REST API that baton-trayai calls. Scope is derived from pkg/connector/client/client.go and pkg/connector/client/path.go; shapes are settled against Tray's published API reference (https://tray.ai/documentation/developer/openapi/trayapi/tag/users/ and .../tag/workspaces/, accessed 2026-09-17). Response schemas include only the properties the Go structs decode -- Tray returns more.\n\nAuth is a bearer token (uhttp.NewBearerAuth in pkg/connector/connector.go:New). Reads send `Accept: application/json` and `Content-Type: application/json`; writes send `Accept: application/json` with a JSON body.\n\nPagination is cursor based: list operations send `cursor` (the previous response's `pageInfo.endCursor`) and `first` (the SDK-supplied page size), and the sync stops when `pageInfo.hasNextPage` is false.\n\nThere is no credential-validation probe -- Connector.Validate is a no-op, so nothing is exercised until the first sync request."
+  },
+  "servers": [
+    {
+      "url": "https://api.tray.io",
+      "description": "Tray.ai Core API (client.basePath). Not configurable."
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Users",
+      "description": "Organization users and their organization role. Synced as user resources; also the account-provisioning surface."
+    },
+    {
+      "name": "Roles",
+      "description": "Organization-level roles, synced as role resources with grants."
+    },
+    {
+      "name": "Workspaces",
+      "description": "Workspaces, their roles, and their per-workspace user role assignments."
+    }
+  ],
+  "paths": {
+    "/core/v1/users": {
+      "get": {
+        "operationId": "listUsers",
+        "summary": "List organization users",
+        "description": "Client: pkg/connector/client/client.go:ListUsers. Used by userBuilder.List, which reads only `elements[].id` and then calls getUser for each one, and by client.ListWorkspaceUsers when no workspace ID is supplied.",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/First"
+          },
+          {
+            "$ref": "#/components/parameters/Last"
+          },
+          {
+            "name": "email",
+            "in": "query",
+            "required": false,
+            "description": "Exact-match email filter. Supported by client.ListParams but not currently set by any caller.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of users.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/UnmodelledError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createUser",
+        "summary": "Create an organization user",
+        "description": "Client: pkg/connector/client/client.go:CreateUser, behind userBuilder's account provisioning. Per Tray this endpoint does not send an invitation and is intended for SSO-configured organizations.",
+        "tags": [
+          "Users"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "email",
+                  "organizationRoleId"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "description": "Becomes the user's login."
+                  },
+                  "organizationRoleId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The created user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/UnmodelledError"
+          }
+        }
+      }
+    },
+    "/core/v1/users/{userId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/UserId"
+        }
+      ],
+      "get": {
+        "operationId": "getUser",
+        "summary": "Retrieve an organization user",
+        "description": "Client: pkg/connector/client/client.go:GetOrganizationUser, and GetWorkspaceUser when the workspace ID is empty. Called once per user during the user sync, so it runs N+1 times against a page of listUsers.",
+        "tags": [
+          "Users"
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested user.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/UnmodelledError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "removeOrganizationUser",
+        "summary": "Remove a user from the organization",
+        "description": "Client: pkg/connector/client/client.go:RemoveOrganizationUser, used when revoking an organization role grant. The response body is not decoded.",
+        "tags": [
+          "Users"
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/Empty"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/UnmodelledError"
+          }
+        }
+      }
+    },
+    "/core/v1/users/{userId}/roles": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/UserId"
+        }
+      ],
+      "put": {
+        "operationId": "setOrganizationRole",
+        "summary": "Set a user's organization role",
+        "description": "Client: pkg/connector/client/client.go:SetWorkspaceRole when the workspace ID is empty -- the organization-role branch of granting a role. The response body is not decoded.",
+        "tags": [
+          "Users"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleIdBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Empty"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/UnmodelledError"
+          }
+        }
+      }
+    },
+    "/core/v1/roles": {
+      "get": {
+        "operationId": "listOrganizationRoles",
+        "summary": "List organization roles",
+        "description": "Client: pkg/connector/client/client.go:ListWorkspaceRoles when the workspace ID is empty. Source of the organization-level role resources; `elements[].id` and `elements[].name` are consumed.",
+        "tags": [
+          "Roles"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/First"
+          },
+          {
+            "$ref": "#/components/parameters/Last"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of organization roles.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/UnmodelledError"
+          }
+        }
+      }
+    },
+    "/core/v1/workspaces": {
+      "get": {
+        "operationId": "listWorkspaces",
+        "summary": "List workspaces",
+        "description": "Client: pkg/connector/client/client.go:ListWorkspaces. Source of the workspace resources; `id`, `name`, `type`, `description`, and `monthlyTaskLimit` all land in the workspace resource profile.",
+        "tags": [
+          "Workspaces"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/First"
+          },
+          {
+            "$ref": "#/components/parameters/Last"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "description": "Workspace type filter. Supported by client.ListParams (ListParams.WorkspaceType) but not currently set by any caller. Values are taken from the client comment, not from Tray's reference.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Embedded",
+                "Organization",
+                "Personal",
+                "PersonalExternal",
+                "Shared"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of workspaces.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/UnmodelledError"
+          }
+        }
+      }
+    },
+    "/core/v1/workspaces/{workspaceId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/WorkspaceId"
+        }
+      ],
+      "get": {
+        "operationId": "getWorkspace",
+        "summary": "Retrieve a workspace",
+        "description": "Client: pkg/connector/client/client.go:GetWorkspace. Only `type` is consumed: the connector compares it to the literal `Organization` to decide whether a role is an organization role or a workspace role (pkg/connector/roles.go, pkg/connector/workspaces.go).",
+        "tags": [
+          "Workspaces"
+        ],
+        "responses": {
+          "200": {
+            "description": "The requested workspace.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workspace"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/UnmodelledError"
+          }
+        }
+      }
+    },
+    "/core/v1/workspaces/{workspaceId}/roles": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/WorkspaceId"
+        }
+      ],
+      "get": {
+        "operationId": "listWorkspaceRoles",
+        "summary": "List a workspace's roles",
+        "description": "Client: pkg/connector/client/client.go:ListWorkspaceRoles when a workspace ID is set. Each element becomes a per-workspace role entitlement; `id` and `name` are consumed.",
+        "tags": [
+          "Workspaces"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/First"
+          },
+          {
+            "$ref": "#/components/parameters/Last"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of workspace roles.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/UnmodelledError"
+          }
+        }
+      }
+    },
+    "/core/v1/workspaces/{workspaceId}/users": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/WorkspaceId"
+        }
+      ],
+      "get": {
+        "operationId": "listWorkspaceUsers",
+        "summary": "List a workspace's users",
+        "description": "Client: pkg/connector/client/client.go:ListWorkspaceUsers. Only `elements[].id` is consumed; the connector then calls getWorkspaceUser per element to learn each user's role in that workspace.",
+        "tags": [
+          "Workspaces"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/First"
+          },
+          {
+            "$ref": "#/components/parameters/Last"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of workspace users.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/UnmodelledError"
+          }
+        }
+      },
+      "post": {
+        "operationId": "addUserToWorkspace",
+        "summary": "Add a user to a workspace with a role",
+        "description": "Client: pkg/connector/client/client.go:AddUserToWorkspace, used when granting a workspace role to a user who is not yet a workspace member. The response body is not decoded.",
+        "tags": [
+          "Workspaces"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "userId",
+                  "roleId"
+                ],
+                "properties": {
+                  "userId": {
+                    "type": "string"
+                  },
+                  "roleId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Empty"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/UnmodelledError"
+          }
+        }
+      }
+    },
+    "/core/v1/workspaces/{workspaceId}/users/{userId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/WorkspaceId"
+        },
+        {
+          "$ref": "#/components/parameters/UserId"
+        }
+      ],
+      "get": {
+        "operationId": "getWorkspaceUser",
+        "summary": "Retrieve a user's membership in a workspace",
+        "description": "Client: pkg/connector/client/client.go:GetWorkspaceUser. Distinct from getUser because a user can hold different roles in different workspaces; the connector consumes `id` and `role.id` to emit the workspace role grants.",
+        "tags": [
+          "Workspaces"
+        ],
+        "responses": {
+          "200": {
+            "description": "The user's workspace membership.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/UnmodelledError"
+          }
+        }
+      },
+      "put": {
+        "operationId": "setWorkspaceRole",
+        "summary": "Set a user's role in a workspace",
+        "description": "Client: pkg/connector/client/client.go:SetWorkspaceRole when a workspace ID is set. The response body is not decoded.",
+        "tags": [
+          "Workspaces"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleIdBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Empty"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/UnmodelledError"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "removeWorkspaceUser",
+        "summary": "Remove a user from a workspace",
+        "description": "Client: pkg/connector/client/client.go:RemoveWorkspaceUser, used when revoking a workspace role grant. The response body is not decoded.",
+        "tags": [
+          "Workspaces"
+        ],
+        "responses": {
+          "204": {
+            "$ref": "#/components/responses/Empty"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/UnmodelledError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Tray.ai API token from the `auth-token` config field, sent as `Authorization: Bearer <token>`."
+      }
+    },
+    "parameters": {
+      "Cursor": {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "description": "Opaque forward cursor. The connector passes the previous response's `pageInfo.endCursor`; omitted on the first request.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "First": {
+        "name": "first",
+        "in": "query",
+        "required": false,
+        "description": "Page size. The connector forwards the page size supplied by the Baton SDK and omits the parameter when that size is zero, leaving Tray's default in effect.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "Last": {
+        "name": "last",
+        "in": "query",
+        "required": false,
+        "description": "Backward page size. Supported by client.ListParams but not currently set by any caller.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "UserId": {
+        "name": "userId",
+        "in": "path",
+        "required": true,
+        "description": "Tray user ID, as returned in `elements[].id` / `id`.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "WorkspaceId": {
+        "name": "workspaceId",
+        "in": "path",
+        "required": true,
+        "description": "Tray workspace ID, as returned by listWorkspaces.",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "responses": {
+      "Empty": {
+        "description": "Empty body. The connector issues the request without a JSON response target and ignores the payload.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "UnmodelledError": {
+        "description": "Error. The client registers no uhttp.WithErrorResponse target, so the body is discarded and uhttp maps the status code to a gRPC status; Tray's reference does not document an error envelope for these endpoints, so none is modelled here."
+      }
+    },
+    "schemas": {
+      "Element": {
+        "type": "object",
+        "description": "Tray's generic list element (client.Element). The same shape is returned for users, roles, and workspaces; which properties are populated depends on the collection.",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Used as the Baton resource ID, and as the lookup key for the per-item getUser / getWorkspaceUser calls."
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name; also the entitlement display name for roles."
+          },
+          "type": {
+            "type": "string",
+            "nullable": true,
+            "description": "Workspace type for workspace elements. The connector compares this to the literal `Organization`; it is stored in the workspace profile as `workspace_type`."
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "description": "Stored in the workspace profile as `workspace_description`."
+          },
+          "monthlyTaskLimit": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "description": "Stored in the workspace profile as `workspace_monthlyTaskLimit`."
+          }
+        }
+      },
+      "Workspace": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Element"
+          }
+        ],
+        "description": "A single workspace (client.Workspace, structurally identical to Element)."
+      },
+      "PageInfo": {
+        "type": "object",
+        "description": "Cursor pagination envelope (client.PageInfo).",
+        "required": [
+          "hasNextPage",
+          "hasPreviousPage"
+        ],
+        "properties": {
+          "startCursor": {
+            "type": "string",
+            "nullable": true
+          },
+          "endCursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Becomes the connector's next page token."
+          },
+          "hasNextPage": {
+            "type": "boolean",
+            "description": "The connector stops paginating when this is false."
+          },
+          "hasPreviousPage": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ListResponse": {
+        "type": "object",
+        "description": "The envelope returned by every list operation (client.ListResp). Decoded as-is; the connector never flattens it.",
+        "required": [
+          "elements",
+          "pageInfo"
+        ],
+        "properties": {
+          "elements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Element"
+            }
+          },
+          "pageInfo": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        }
+      },
+      "Role": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Compared against the role component of a grant ID when reconciling grants."
+          },
+          "name": {
+            "type": "string",
+            "description": "Stored in the user profile as `role`."
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "description": "A user as returned by the single-user endpoints (client.User). `workspaceId` is present only on the workspace-scoped variant.",
+        "required": [
+          "id",
+          "email",
+          "role"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Used as the Baton user resource ID."
+          },
+          "email": {
+            "type": "string",
+            "description": "Primary email of the user resource."
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name and login. Documented on the organization-user response; Tray's reference omits it from the workspace-user response, where the connector does not read it."
+          },
+          "accountType": {
+            "type": "string",
+            "nullable": true,
+            "description": "Stored in the user profile as `accountType`."
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "workspaceId": {
+            "type": "string",
+            "description": "Only returned by getWorkspaceUser."
+          }
+        }
+      },
+      "RoleIdBody": {
+        "type": "object",
+        "required": [
+          "roleId"
+        ],
+        "properties": {
+          "roleId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      }
+    }
+  }
+}
