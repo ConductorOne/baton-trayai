@@ -21,17 +21,14 @@ func workspaceResource(ws client.Element) (*v2.Resource, error) {
 		ws.Name,
 		workspaceResourceType,
 		ws.ID,
-		[]sdkResource.GroupTraitOption{
-			sdkResource.WithGroupProfile(
-				map[string]interface{}{
-					"workspace_id":               ws.ID,
-					"workspace_name":             ws.Name,
-					"workspace_type":             ws.Type,
-					"workspace_description":      ws.Description,
-					"workspace_monthlyTaskLimit": ws.MonthlyTaskLimit,
-				},
-			),
-		},
+		[]sdkResource.GroupTraitOption{},
+		sdkResource.WithResourceProfile(map[string]interface{}{
+			"workspace_id":               ws.ID,
+			"workspace_name":             ws.Name,
+			"workspace_type":             ws.Type,
+			"workspace_description":      ws.Description,
+			"workspace_monthlyTaskLimit": ws.MonthlyTaskLimit,
+		}),
 		sdkResource.WithAnnotation(
 			&v2.ChildResourceType{ResourceTypeId: roleResourceType.Id},
 		),
