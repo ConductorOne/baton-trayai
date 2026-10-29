@@ -33,11 +33,11 @@ func userResource(
 		userResourceType,
 		user.ID,
 		[]sdkResource.UserTraitOption{
-			sdkResource.WithStatus(v2.UserTrait_Status_STATUS_ENABLED),
-			sdkResource.WithUserProfile(profile),
 			sdkResource.WithEmail(user.Email, true),
 			sdkResource.WithUserLogin(user.Name),
 		},
+		sdkResource.WithResourceStatus(v2.Status_RESOURCE_STATUS_ENABLED, ""),
+		sdkResource.WithResourceProfile(profile),
 		sdkResource.WithParentResourceID(parentResourceID),
 	)
 }
