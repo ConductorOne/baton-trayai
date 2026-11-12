@@ -13,17 +13,24 @@ import (
 // Params is the parameters used to init a tray.io client.
 type Params struct {
 	HttpClient *uhttp.BaseHttpClient
+	BaseURL    string
 }
 
 // Client is used to interact with Tray.io.
 type Client struct {
 	httpClient *uhttp.BaseHttpClient
+	baseURL    string
 }
 
 // NewClient initializes a new tray.ai Client.
 func NewClient(p Params) *Client {
+	baseURL := p.BaseURL
+	if baseURL == "" {
+		baseURL = basePath
+	}
 	return &Client{
 		httpClient: p.HttpClient,
+		baseURL:    baseURL,
 	}
 }
 
@@ -51,7 +58,7 @@ type ListResp struct {
 
 // ListUsers list all the users from tray.ai.
 func (c *Client) ListUsers(ctx context.Context, params ListParams) (*ListResp, error) {
-	urlpath, err := url.Parse(basePath + listUsersPath)
+	urlpath, err := url.Parse(c.baseURL + listUsersPath)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +95,7 @@ type CreateUserParams struct {
 
 // CreateUser is used to create user in tray.ai.
 func (c *Client) CreateUser(ctx context.Context, params *CreateUserParams) (*User, error) {
-	urlpath, err := url.Parse(basePath + listUsersPath)
+	urlpath, err := url.Parse(c.baseURL + listUsersPath)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +123,7 @@ func (c *Client) CreateUser(ctx context.Context, params *CreateUserParams) (*Use
 type AddUserToWorkspaceParams SetOrDeleteWorkspaceRoleParams
 
 func (c *Client) AddUserToWorkspace(ctx context.Context, p AddUserToWorkspaceParams) error {
-	urlpath, err := url.Parse(basePath + fmt.Sprintf(listWorkspaceUsersPath, p.WorkspaceID))
+	urlpath, err := url.Parse(c.baseURL + fmt.Sprintf(listWorkspaceUsersPath, p.WorkspaceID))
 	if err != nil {
 		return err
 	}
@@ -163,7 +170,7 @@ func toQuery(url *url.URL, p ListParams) string {
 }
 
 func (c *Client) ListWorkspaces(ctx context.Context, params ListParams) (*ListResp, error) {
-	urlpath, err := url.Parse(basePath + listWorkspacesPath)
+	urlpath, err := url.Parse(c.baseURL + listWorkspacesPath)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +205,7 @@ func (c *Client) ListWorkspaceRoles(ctx context.Context, params ListParams) (*Li
 		trayPath = fmt.Sprintf(listWorkspaceRolesPath, params.WorkspaceID)
 	}
 
-	urlpath, err := url.Parse(basePath + trayPath)
+	urlpath, err := url.Parse(c.baseURL + trayPath)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +239,7 @@ func (c *Client) ListWorkspaceUsers(ctx context.Context, params ListParams) (*Li
 		trayPath = fmt.Sprintf(listWorkspaceUsersPath, params.WorkspaceID)
 	}
 
-	urlpath, err := url.Parse(basePath + trayPath)
+	urlpath, err := url.Parse(c.baseURL + trayPath)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +268,7 @@ func (c *Client) ListWorkspaceUsers(ctx context.Context, params ListParams) (*Li
 }
 
 func (c *Client) GetOrganizationUser(ctx context.Context, userID string) (*User, error) {
-	urlpath, err := url.Parse(basePath + fmt.Sprintf(getUserPath, userID))
+	urlpath, err := url.Parse(c.baseURL + fmt.Sprintf(getUserPath, userID))
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +302,7 @@ func (c *Client) GetWorkspaceUser(ctx context.Context, userID string, workspaceI
 		trayPath = fmt.Sprintf(getWorkspaceUserPath, workspaceID, userID)
 	}
 
-	urlpath, err := url.Parse(basePath + trayPath)
+	urlpath, err := url.Parse(c.baseURL + trayPath)
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +328,7 @@ func (c *Client) GetWorkspaceUser(ctx context.Context, userID string, workspaceI
 }
 
 func (c *Client) GetWorkspace(ctx context.Context, workspaceID string) (*Workspace, error) {
-	urlpath, err := url.Parse(basePath + fmt.Sprintf(getWorkspacePath, workspaceID))
+	urlpath, err := url.Parse(c.baseURL + fmt.Sprintf(getWorkspacePath, workspaceID))
 	if err != nil {
 		return nil, err
 	}
@@ -359,7 +366,7 @@ func (c *Client) SetWorkspaceRole(ctx context.Context, p SetOrDeleteWorkspaceRol
 	if p.WorkspaceID != "" {
 		trayPath = fmt.Sprintf(getWorkspaceUserPath, p.WorkspaceID, p.UserID)
 	}
-	urlpath, err := url.Parse(basePath + trayPath)
+	urlpath, err := url.Parse(c.baseURL + trayPath)
 	if err != nil {
 		return err
 	}
@@ -390,7 +397,7 @@ func (c *Client) SetWorkspaceRole(ctx context.Context, p SetOrDeleteWorkspaceRol
 }
 
 func (c *Client) RemoveWorkspaceUser(ctx context.Context, p SetOrDeleteWorkspaceRoleParams) error {
-	urlpath, err := url.Parse(basePath + fmt.Sprintf(getWorkspaceUserPath, p.WorkspaceID, p.UserID))
+	urlpath, err := url.Parse(c.baseURL + fmt.Sprintf(getWorkspaceUserPath, p.WorkspaceID, p.UserID))
 	if err != nil {
 		return err
 	}
@@ -414,7 +421,7 @@ func (c *Client) RemoveWorkspaceUser(ctx context.Context, p SetOrDeleteWorkspace
 }
 
 func (c *Client) RemoveOrganizationUser(ctx context.Context, p SetOrDeleteWorkspaceRoleParams) error {
-	urlpath, err := url.Parse(basePath + fmt.Sprintf(getUserPath, p.UserID))
+	urlpath, err := url.Parse(c.baseURL + fmt.Sprintf(getUserPath, p.UserID))
 	if err != nil {
 		return err
 	}

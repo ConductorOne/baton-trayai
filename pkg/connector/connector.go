@@ -83,7 +83,7 @@ func (d *Connector) Validate(ctx context.Context) (annotations.Annotations, erro
 }
 
 // New returns a new instance of the connector.
-func New(ctx context.Context, apiKey string) (*Connector, error) {
+func New(ctx context.Context, apiKey string, baseURL string) (*Connector, error) {
 	httpClient, err := uhttp.NewBearerAuth(apiKey).GetClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("baton-trayai: cannot init connector: %w", err)
@@ -92,6 +92,7 @@ func New(ctx context.Context, apiKey string) (*Connector, error) {
 	return &Connector{
 		client: trayclient.NewClient(trayclient.Params{
 			HttpClient: uhttp.NewBaseHttpClient(httpClient),
+			BaseURL:    baseURL,
 		}),
 	}, nil
 }
